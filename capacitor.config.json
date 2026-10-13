@@ -1,0 +1,7 @@
+{
+  "appId": "com.enginesim.app",
+  "appName": "Engine Sim",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "backgroundColor": "#14171c"
+}

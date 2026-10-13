@@ -1,0 +1,13 @@
+{
+  "name": "engine-sim-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Engine Sim — APK (Capacitor + Three.js)",
+  "scripts": { "prepare-web": "node scripts/prepare-web.js" },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": { "three": "^0.170.0" }
+}
