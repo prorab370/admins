@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Engine Sim</title>
+<link rel="icon" href="icon.png">
 <style>
 :root{--fg:#e8eaed;--panel:rgba(26,30,37,.82);--accent:#e8590c}
-html,body{height:100%;margin:0;overflow:hidden;background:#14171c;color:var(--fg);font:13px system-ui,"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none}
+html,body{height:100%;margin:0;overflow:hidden;background:#14171c;color:var(--fg);font:14px 'Barlow Semi Condensed','Segoe UI',system-ui,sans-serif;user-select:none;-webkit-user-select:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .card{background:var(--panel);backdrop-filter:blur(8px);border-radius:10px;padding:8px 12px}
 button{font:inherit;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:7px 12px;cursor:pointer}
@@ -35,7 +36,7 @@ html,body{touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color
 #tachTemp{left:auto;right:12px;top:64px;bottom:auto;width:min(100px,20vw);height:min(100px,20vw);transform:none}
 /* Телефон, альбомная ориентация (и любое окно ниже 520 px) */
 @media (max-height:520px){
-  body{font-size:11px}
+  body{font-size:12px}
   .card{padding:4px 8px;border-radius:8px}
   button{padding:5px 9px;font-size:11px;border-radius:6px}
   #top{top:max(4px,env(safe-area-inset-top));left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right))}
@@ -52,6 +53,27 @@ html,body{touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color
   #bot{bottom:4px}#drv{bottom:42px}
   #stall{bottom:96px}#stall .card{font-size:14px}
 }
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-condensed-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/sofia-sans-condensed-600-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-condensed-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/sofia-sans-condensed-700-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/sofia-sans-condensed-800-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/barlow-semi-condensed-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/sofia-sans-semi-condensed-400-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-semi-condensed-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/sofia-sans-semi-condensed-500-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-semi-condensed-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/sofia-sans-semi-condensed-700-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-semi-condensed-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/sofia-sans-semi-condensed-800-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/share-tech-mono-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/noto-sans-mono-condensed-400-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+body{font-family:'Barlow Semi Condensed','Segoe UI',system-ui,sans-serif}
+#rpmv,#spd,#gr,#cev,#tempv,#fps,#ldv,#dv{font-family:'Share Tech Mono','Barlow Semi Condensed',monospace;font-weight:400}
+select{font:inherit;color:#fff;background:rgba(128,128,128,.35);border:0;border-radius:8px;padding:6px 8px;max-width:210px;cursor:pointer}option{background:#1a1e25;color:#e8eaed}
+#bios{margin:0;max-width:min(560px,90vw);min-height:9em;font:13px/1.5 'Share Tech Mono','Noto Sans Mono Condensed',monospace;color:#4cc38a;white-space:pre-wrap;text-shadow:0 0 6px rgba(76,195,138,.5)}#lt{font-family:'Share Tech Mono',monospace;color:#9aa4b2}
+#eng{max-width:150px}
 </style></head>
 <body>
 <canvas id="c"></canvas>
@@ -61,6 +83,11 @@ html,body{touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color
     <button class="alt" id="xr" title="X">X-ray</button>
     <label id="dw" style="display:none">Глубина реза <input id="depth" type="range" min="0" max="100" value="50"> <b id="dv">50%</b></label>
     <button class="alt" id="q" title="Q">Графика</button>
+    <select id="eng" title="Двигатель: свой (реальная модель) или из каталога">
+      <option value="mine">Мой двигатель (реальная модель)</option><option value="i3">Каталог: рядный 3 · 1.0 л</option><option value="i4">Каталог: рядный 4 · 2.0 л</option><option value="i6">Каталог: рядный 6 · 3.0 л</option>
+      <option value="v6">Каталог: V6 · 3.5 л</option><option value="v8">Каталог: V8 · 5.0 л</option><option value="h4">Каталог: оппозитный H4</option><option value="h6">Каталог: оппозитный H6</option>
+      <option value="v10">Каталог: V10 · 5.0 л</option><option value="v12">Каталог: V12 · 6.0 л</option></select>
+    <button class="alt" id="cv" style="display:none" title="Обычный / прозрачный / разнесённый вид">Стиль: обычный</button>
     <button class="alt" id="vw" title="Вид: мотор / трансмиссия / всё">Вид: мотор</button><button class="alt" id="reset">Камера</button>
   </div>
 </div>
@@ -81,13 +108,14 @@ html,body{touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color
 </div>
 <div class="pedal c" id="clutch" title="Сцепление: тяни вверх (выжать) / Shift"><span>СЦЕП</span><i id="cfill" style="height:0"></i></div>
 <div id="stall"><div class="card"><span id="stt">Двигатель заглох</span><small id="sts">выжми сцепление или поставь N, затем</small><button id="startb">Завести (E)</button></div></div>
-<div id="load"><div id="lt">Загрузка модели…</div><div id="barw"><div id="bar"></div></div></div>
+<div id="load"><pre id="bios"></pre><div id="lt">Загрузка модели…</div><div id="barw"><div id="bar"></div></div></div>
 <div id="hint" class="card">
 <div class="row"><kbd>Пробел</kbd><kbd>↑</kbd><span>— газ</span></div>
 <div class="row"><kbd>Shift</kbd><span>— сцепление</span></div>
 <div class="row"><kbd>1</kbd>–<kbd>5</kbd><span>— передача</span></div>
 <div class="row"><kbd>N</kbd><span>— нейтраль</span> <kbd>R</kbd><span>— задний</span></div>
 <div class="row"><kbd>H</kbd><span>— ручник</span></div>
+<div class="row"><span>🎮 RT газ · LT сцепл. · RB/LB передачи · A завести · Y разрез</span></div>
 <div class="row"><kbd>E</kbd><span>— завести</span> <kbd>K</kbd><span>— стоп</span></div>
 <div class="row"><kbd>M</kbd><span>— звук</span> <kbd>X</kbd><span>— разрез</span></div>
 </div>
