@@ -35,9 +35,13 @@ const TEMP_WARN = 115;         // °C, начало жёлтой зоны
 const TEMP_CRIT = 130;         // °C, красная зона, риск разрушения
 const TEMP_DEATH = 150;        // °C, разрушение двигателя
 const TEMP_MAX_DISPLAY = 160;  // °C, шкала датчика
-const HEAT_RATE = .28;         // °C/сек на 1000 RPM (нагрев от нагрузки)
-const COOL_RATE = .4;         // °C/сек (охлаждение)
-const COOL_AIRFLOW = 1.6;      // множитель охлаждения от скорости
+// ===== Перегрев: реалистичный медленный нагрев =====
+const HEAT_IDLE = 0.20;       // °C/сек на холостых (1 °C за 5 сек)
+const HEAT_RPM = 0.10;        // добавка от оборотов
+const HEAT_BOOST = 0.08;      // наддув греет
+const HEAT_LOAD = 0.05;       // нагрузка греет
+const COOL_COEF = 0.06;       // охлаждение выше 90 °C
+const AIRFLOW_MUL = 1.5;      // обдув на скорости
 const G = { pitch: 5, y0: 0, crankZ: -7, r: 2, L: 6, lift: .5 };      // шаг цилиндров, ось коленвала, радиус кривошипа, шатун, ход клапана
 const PHASE = [0, Math.PI, Math.PI, 0], FIRE = [0, 3 * Math.PI, Math.PI, 2 * Math.PI]; // порядок 1-3-4-2
 const IN = { open: rad(-10), dur: rad(230) }, EX = { open: rad(500), dur: rad(240) };   // фазы газораспределения
@@ -103,7 +107,9 @@ const MAT = {
   spring: MT(0x5f7fa8, .85, .35), ceramic: MT(0xf2efe6, 0, .35), electrode: MT(0xb8bcc2, .9, .3, { emissive: 0xff8a3d, emissiveIntensity: .15 }),
   rubber: MT(0x1a1a1a, 0, .95), cam: MT(0xa7abb2, .9, .3), flywheel: MT(0x9aa0a8, .95, .25), mark: MT(0xf4f4f4, 0, .5),
   gear: MT(0x8f959d, .9, .35), hous: MT(0xb8b8bc, .85, .35, { side: THREE.DoubleSide }), bell: MT(0xb8b8bc, .85, .35, { side: THREE.DoubleSide, transparent: true, opacity: .28, depthWrite: false }),
-  friction: MT(0x4a3426, .3, .9, { emissive: 0x8b0000, emissiveIntensity: 0 }), rim: MT(0xc8ccd2, .9, .3, { side: THREE.DoubleSide })
+  friction: MT(0x4a3426, .3, .9, { emissive: 0x8b0000, emissiveIntensity: 0 }), rim: MT(0xc8ccd2, .9, .3, { side: THREE.DoubleSide }),
+  castD: MT(0x3a3a3d, .7, .65, { side: THREE.DoubleSide }), steelD: MT(0x9ea3ab, .9, .3, { side: THREE.DoubleSide }),
+  bearing: MT(0xa9c0d0, .6, .4, { side: THREE.DoubleSide }), brass: MT(0xc9a24a, .85, .35)
 };
 function pickMat(p) {
   if (/rubber|gasket|hose|seal|прокладк/i.test(p.m.name)) return MAT.rubber;
@@ -250,10 +256,10 @@ let xr = false;
 function setDepth() {
   const t = $('depth').value / 100; $('dv').textContent = Math.round(t * 100) + '%';
   const u = (t - .5) * 2, hw = Math.max(Math.abs(bboxAll.min.z), Math.abs(bboxAll.max.z), bbox.max.z);   // квадратичная шкала: у центра (мотор) точнее, к краям — до колеса
-  cutPlane.constant = -Math.sign(u) * u * u * hw;
+  cutPlane.constant = cat.grp ? -u * cat.hw : -Math.sign(u) * u * u * hw;
 }
 function setXray(on) {
-  xr = on; $('xr').classList.toggle('on', on); $('dw').style.display = on ? '' : 'none'; cap.visible = on && !MOBILE;
+  xr = on; $('xr').classList.toggle('on', on); $('dw').style.display = on ? '' : 'none'; cap.visible = on && !MOBILE && !cat.grp; catXray(on);
   Object.values(MAT).forEach(m => { m.clippingPlanes = on ? [cutPlane] : null; if (MOBILE) { if (m.userData.s0 === undefined) m.userData.s0 = m.side; m.side = on ? THREE.DoubleSide : m.userData.s0; } m.needsUpdate = true; });   // без stencil-крышек: показываем внутренние стенки
   hl.forEach(m => { m.emissive.set(on ? 0xff6b35 : 0x000000); m.emissiveIntensity = on ? .25 : 0; });
   capTwins.forEach(t => { t.visible = on; });
@@ -320,28 +326,23 @@ function stepTurbo(dt) {
 // ===== Перегрев =====
 function stepHeat(dt) {
   if (sim.destroyed) return;
-  
-  // Нагрев: от оборотов + буста + нагрузки + отсутствия охлаждения на низкой скорости
-  const rpmHeat = (sim.rpm / REDLINE) * HEAT_RATE * 1000 / 1000 * 60;   // °C в минуту → сек
-  const boostHeat = sim.boost * 8;                                       // буст греет сильнее
-  const loadHeat = sim.load * 6;
-  const heat = (rpmHeat * (sim.rpm / 1000) + boostHeat + loadHeat);
-  
-  // Охлаждение: радиатор + обдув от скорости
-  const airflow = 1 + (Math.abs(sim.v * 3.6) / 100) * COOL_AIRFLOW;
-  const cooled = (sim.temp - TEMP_NORM) * COOL_RATE * airflow * (sim.rpm > 100 ? 1 : .3);
-  const cool = sim.temp > TEMP_NORM ? cooled : 0;
-  
-  sim.temp += (heat - cool) * dt / 60 * 60;   // переводим минуты в секунды
+  const running = !sim.stalled && sim.rpm > 100, rr = sim.rpm / REDLINE;
+  // Нагрев: базовый + логарифмическая добавка от оборотов (помпа на высоких RPM эффективнее — прирост слабее).
+  // Добавка отсчитывается от холостых, поэтому на 800 об/мин нагрев ровно 0.20 °C/сек.
+  const idleHeat = running ? HEAT_IDLE : 0;
+  const rpmHeat = running ? HEAT_RPM * Math.log(1 + Math.max(0, rr - IDLE / REDLINE) * 9) : 0;
+  const boostHeat = sim.boost * HEAT_BOOST, loadHeat = sim.load * HEAT_LOAD;
+  const heat = idleHeat + rpmHeat + boostHeat + loadHeat;
+  // Охлаждение: работает только выше рабочей температуры; на скорости обдув сильнее
+  const airflow = 1 + (Math.abs(sim.v * 3.6) / 100) * AIRFLOW_MUL;
+  const cool = sim.temp > TEMP_NORM ? (sim.temp - TEMP_NORM) * COOL_COEF * airflow : 0;
+  sim.temp += (heat - cool) * dt;
   sim.temp = Math.max(TEMP_COLD, Math.min(TEMP_DEATH + 20, sim.temp));
-  
-  // Разрушение
-  if (!sim.destroyed && sim.temp >= TEMP_DEATH) {
-    destroyEngine();
-  }
+  if (!sim.destroyed && sim.temp >= TEMP_DEATH) destroyEngine();
 }
 
 function destroyEngine() {
+  breakCatalog();
   sim.destroyed = true;
   sim.stalled = true;
   sim.cranking = false;
@@ -355,6 +356,7 @@ function destroyEngine() {
 // Ремонт после разрушения: новый (холодный) двигатель, без перезагрузки страницы
 function repairEngine() {
   if (!sim.destroyed) return;
+  unbreakCatalog();
   sim.destroyed = false; sim.stalled = true; sim.cranking = false; sim.crankTime = 0; sim.cut = false; sim.cutBoost = 0;
   sim.rpm = 0; sim.turbo = 0; sim.boost = 0; sim.boostTgt = 0; sim.bov = 0; sim.bovArmed = false;
   sim.temp = TEMP_COLD; sim.cheat = 0; sim.slip = 0; sim.strain = 0;
@@ -625,7 +627,7 @@ function drawTach(dt) {
   needle += (sim.rpm - needle) * (1 - Math.exp(-dt / .04)); const s = ts, c = s / 2, Rr = s * .46, g = tg;
   g.clearRect(0, 0, s, s); g.beginPath(); g.arc(c, c, s / 2 - 1, 0, 7); g.fillStyle = 'rgba(26,30,37,.85)'; g.fill();
   g.beginPath(); g.arc(c, c, Rr * 1.04, tA(REDLINE * .93), tA(REDLINE)); g.strokeStyle = '#e03131'; g.lineWidth = s * .03; g.stroke();
-  g.strokeStyle = g.fillStyle = '#e8eaed'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 ' + s * .09 + 'px system-ui';
+  g.strokeStyle = g.fillStyle = '#e8eaed'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 ' + s * .09 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
 const step = REDLINE / 8;   // всегда 8 делений на шкале
 for (let v = 0; v <= REDLINE; v += step) {
   const a = tA(v), mj = (v % step) < 1, ca = Math.cos(a), sa = Math.sin(a), r2 = Rr * (mj ? .82 : .9);
@@ -635,8 +637,8 @@ for (let v = 0; v <= REDLINE; v += step) {
 }
   const a = tA(needle), ca = Math.cos(a), sa = Math.sin(a); g.strokeStyle = '#e8590c'; g.lineWidth = s * .025; g.lineCap = 'round';
   g.beginPath(); g.moveTo(c - ca * Rr * .12, c - sa * Rr * .12); g.lineTo(c + ca * Rr * .88, c + sa * Rr * .88); g.stroke();
-  g.fillStyle = sim.cut ? '#e03131' : '#e8eaed'; g.font = '700 ' + s * .1 + 'px system-ui'; g.fillText(Math.round(sim.rpm), c, c + Rr * .5);
-  g.globalAlpha = .7; g.fillStyle = '#e8eaed'; g.font = s * .06 + 'px system-ui'; g.fillText('×1000 об/мин', c, c + Rr * .7); g.globalAlpha = 1;
+  g.fillStyle = sim.cut ? '#e03131' : '#e8eaed'; g.font = '700 ' + s * .1 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui'; g.fillText(Math.round(sim.rpm), c, c + Rr * .5);
+  g.globalAlpha = .7; g.fillStyle = '#e8eaed'; g.font = s * .06 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui'; g.fillText('×1000 об/мин', c, c + Rr * .7); g.globalAlpha = 1;
 }
 // ===== Тахометр турбины с давлением =====
 const tachT = $('tachTurbo'), tgT = tachT.getContext('2d');
@@ -683,7 +685,7 @@ function drawTurboTach(dt) {
   // Метки давления
   g.strokeStyle = g.fillStyle = '#e8eaed';
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '600 ' + s * .08 + 'px system-ui';
+  g.font = '600 ' + s * .08 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   for (let b = -1; b <= 2; b += .5) {
     const a = tAB(b), mj = (b % 1 === 0);
     const ca = Math.cos(a), sa = Math.sin(a), r2 = Rr * (mj ? .82 : .9);
@@ -697,7 +699,7 @@ function drawTurboTach(dt) {
 
   // Внутренняя шкала турбины (RPM), тоньше
   g.strokeStyle = '#8892a0';
-  g.font = s * .055 + 'px system-ui';
+  g.font = s * .055 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   for (let v = 0; v <= TURBO_MAX; v += 30000) {
     const a = tAT(v);
     const ca = Math.cos(a), sa = Math.sin(a);
@@ -732,77 +734,141 @@ function drawTurboTach(dt) {
   // Текст: давление + RPM турбины
   const over = sim.boost > BOOST_LIMIT;
   g.fillStyle = over ? '#e03131' : '#e8eaed';
-  g.font = '700 ' + s * .13 + 'px system-ui';
+  g.font = '700 ' + s * .13 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   g.fillText(sim.boost.toFixed(2), c, c + Rr * .42);
-  g.font = s * .07 + 'px system-ui';
+  g.font = s * .07 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   g.fillStyle = '#8892a0';
   g.fillText('бар', c, c + Rr * .58);
-  g.font = s * .06 + 'px system-ui';
+  g.font = s * .06 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   g.fillStyle = '#4a9eff';
   g.fillText((sim.turbo / 1000).toFixed(0) + 'k об/мин', c, c + Rr * .75);
 }
 // ===== Трансмиссия (процедурная, в системе координат модели): сцепление → КПП (5 пар) → кардан → задний мост → колесо =====
-function gearGeo(r, n, thick, phaseT) {          // зубчатое колесо: ось Y; зуб №0 в направлении φ=0 (phaseT=0) либо впадина там (phaseT=π+π/n)
+function gearGeo(r, n, thick, phaseT, lh) {      // зубчатое колесо: ось Y; зуб №0 в направлении φ=0 (phaseT=0) либо впадина там (phaseT=π+π/n); lh = {n, rr, hr} — облегчающие отверстия
   const sh = new THREE.Shape(), rt = r + .2, rr = r - .3, dA = TAU / n;
   for (let k = 0; k < n; k++) {
     const c = -Math.PI / 2 + phaseT + k * dA, a = [c - dA * .30, c - dA * .17, c + dA * .17, c + dA * .30], rd = [rr, rt, rt, rr];
     a.forEach((t, i) => { const x = rd[i] * Math.cos(t), y = rd[i] * Math.sin(t); if (k === 0 && i === 0) sh.moveTo(x, y); else sh.lineTo(x, y); });
   }
   sh.closePath(); const hole = new THREE.Path(); hole.absarc(0, 0, Math.min(1.1, r * .3), 0, TAU, true); sh.holes.push(hole);
+  if (lh) for (let i = 0; i < lh.n; i++) { const h = new THREE.Path(), a = i / lh.n * TAU; h.absarc(Math.cos(a) * lh.rr, Math.sin(a) * lh.rr, lh.hr, 0, TAU, true); sh.holes.push(h); }
   const g = new THREE.ExtrudeGeometry(sh, { depth: thick, bevelEnabled: false, curveSegments: 6 }); g.rotateX(-Math.PI / 2); g.translate(0, -thick / 2, 0); return g;
 }
 function buildDrivetrain() {
-  const ZC = G.crankZ, D = 11, dt = new THREE.Group(), T = []; rig.add(dt); DR = { O: [], wheels: [] };   // ось трансмиссии = ось коленвала (z = ZC), вдоль Y
+  // Масштаб: 1 ед. ≈ 20 мм. Ось трансмиссии = ось коленвала (x = 0, z = ZC), вдоль +Y. КПП за маховиком (0.5 м), мост на 2.5 м позади КПП.
+  const ZC = G.crankZ, D = 11, GB0 = 27, GBL = 25, YD = 165, dt = new THREE.Group(), T = []; rig.add(dt);
+  DR = { O: [], forks: [], sat: [], wheels: [], fk: [0, 0, 0], lv: { x: 0, y: 0 } };
   const mesh = (parent, geo, mat, x = 0, y = 0, z = 0, cap = false) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); if (cap) T.push(m); return m; };
-  const spin = (y, x = 0, z = ZC) => { const g = new THREE.Group(); g.position.set(x, y, z); dt.add(g); return g; };
-  const cylY = (r, h, seg = 32, open = false) => new THREE.CylinderGeometry(r, r, h, seg, 1, open), cylX = (r, h, seg = 32, open = false) => cylY(r, h, seg, open).rotateZ(Math.PI / 2);
-  // --- сцепление: нажимной диск (ведущий) вращается с коленвалом, ведомый — с валом КПП; при выжиме расходятся ---
+  const grp = (x, y, z, parent = dt) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
+  const spin = (x = 0, z = ZC) => grp(x, 0, z);                                     // группа вращения вокруг оси Y: дочерние меши — в абсолютных Y
+  const cylY = (r, h, seg = 32, open = false) => new THREE.CylinderGeometry(r, r, h, seg, 1, open);
+  const cylX = (r, h, seg = 32, open = false) => cylY(r, h, seg, open).rotateZ(Math.PI / 2), cylZ = (r, h, seg = 32, open = false) => cylY(r, h, seg, open).rotateX(Math.PI / 2);
+  const link = (a, b, r, mat) => { const d = b.clone().sub(a), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 12), mat); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize()); m.castShadow = true; dt.add(m); return m; };
+  const joint = (parent, y) => { const j = grp(0, y, 0, parent);                       // крестовина карданного шарнира: 2 тора под 90° + крест
+    mesh(j, new THREE.TorusGeometry(2.1, .35, 8, 24).rotateX(Math.PI / 2), MAT.steel, 0, 0, 0, true); mesh(j, new THREE.TorusGeometry(2.1, .35, 8, 24).rotateY(Math.PI / 2), MAT.steel, 0, 0, 0, true);
+    mesh(j, cylX(.6, 5, 12), MAT.steel, 0, 0, 0, true); mesh(j, cylZ(.6, 5, 12), MAT.steel, 0, 0, 0, true); mesh(j, new THREE.BoxGeometry(2.4, 2.4, 2.4), MAT.steel); };
+
+  // ---------- сцепление: ведущий (нажимной) диск вращается с коленвалом, ведомый — с первичным валом КПП ----------
   DR.plate = new THREE.Group(); DR.plate.position.y = 21.15; crankG.add(DR.plate);
   mesh(DR.plate, cylY(6.5, .8, 48), MAT.flywheel, 0, 0, 0, true); mesh(DR.plate, new THREE.BoxGeometry(2, .82, .5), MAT.mark, 4.5, 0, 0);
-  DR.driven = spin(20.5); mesh(DR.driven, cylY(6.2, .5, 48), MAT.friction, 0, 0, 0, true); mesh(DR.driven, cylY(1.7, 1.0, 24), MAT.steel); mesh(DR.driven, new THREE.BoxGeometry(2, .52, .5), MAT.mark, 4.2, 0, 0);
-  mesh(dt, cylY(9.6, 9, 56, true), MAT.bell, 0, 22.5, ZC);                                  // колокол (полупрозрачный — маховик виден)
-  // --- КПП: корпус со скруглёнными углами, входной вал, вал-прокладка, 5 пар шестерён ---
-  mesh(dt, new RoundedBoxGeometry(20, 14.5, 29, 4, 1.4), MAT.hous, 0, 34.0, ZC - 4.5);
-  const nIn = Math.round(TAU * 5.5 / 1.1);
-  DR.inShaft = spin(24.5); mesh(DR.inShaft, cylY(.9, 7, 16), MAT.steel, 0, 0, 0, true); mesh(DR.inShaft, gearGeo(5.5, nIn, 1.6, Math.PI + Math.PI / nIn), MAT.gear, 0, 27.2 - 24.5, 0, true);
-  DR.cnt = spin(33.5, 0, ZC - D); mesh(DR.cnt, cylY(.9, 14, 16), MAT.steel, 0, 0, 0, true); mesh(DR.cnt, gearGeo(5.5, nIn, 1.6, 0), MAT.gear, 0, 27.2 - 33.5, 0, true);
-  GEARS.forEach((ratio, i) => {            // rO/rC = передаточное число; rC + rO = межосевое расстояние
-    const y = 29.5 + 2.2 * i, rC = D / (1 + ratio), rO = D * ratio / (1 + ratio), nC = Math.max(9, Math.round(TAU * rC / 1.1)), nO = Math.round(TAU * rO / 1.1);
-    mesh(DR.cnt, gearGeo(rC, nC, 1.7, 0), MAT.gear, 0, y - 33.5, 0, true);
-    const o = mesh(dt, gearGeo(rO, nO, 1.7, Math.PI + Math.PI / nO), MAT.gear, 0, y, ZC, true); o.userData.k = nC / nO; DR.O.push(o);
+  DR.driven = grp(0, 20.5, ZC); mesh(DR.driven, cylY(6.2, .5, 48), MAT.friction, 0, 0, 0, true); mesh(DR.driven, cylY(1.7, 1.0, 24), MAT.steel); mesh(DR.driven, new THREE.BoxGeometry(2, .52, .5), MAT.mark, 4.2, 0, 0);
+  mesh(dt, cylY(9.6, 9, 56, true), MAT.bell, 0, 22.5, ZC);                           // колокол (полупрозрачный — маховик виден)
+
+  // ---------- корпус КПП: скруглённый алюминиевый блок, 8 рёбер, крышка с люком и болтами ----------
+  const gy = GB0 + GBL / 2, gz = ZC - 4.5, top = gz + 15;
+  mesh(dt, new RoundedBoxGeometry(21, GBL, 30, 4, 1.8), MAT.hous, 0, gy, gz);
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) mesh(dt, new THREE.BoxGeometry(.8, .9, 24), MAT.hous, sx * 10.9, GB0 + 3 + i * 6.3, gz);
+  mesh(dt, new RoundedBoxGeometry(15, 17, 2.2, 3, .8), MAT.hous, 0, gy, top + 1.0);
+  mesh(dt, cylZ(2.3, .6, 24), MAT.cast, 3.2, gy + 5.2, top + 2.3);                    // смотровой люк
+  for (const [bx, by] of [[-6, -7], [6, -7], [-6, 7], [6, 7], [0, -7.5], [0, 7.5]]) mesh(dt, cylZ(.5, .6, 6), MAT.steel, bx, gy + by, top + 2.3);
+  // рычаг КПП: шаровая опора + нижний сегмент + верхний сегмент под углом + рукоять (наклоняется по включённой передаче)
+  DR.lever = grp(0, gy - 1.5, top + 2.1);
+  mesh(DR.lever, new THREE.SphereGeometry(1.6, 16, 12), MAT.cast); mesh(DR.lever, cylZ(.75, 8, 12), MAT.steel, 0, 0, 4);
+  const up = grp(0, 0, 8, DR.lever); up.rotation.x = -.5;
+  mesh(up, new THREE.SphereGeometry(.95, 12, 10), MAT.steel); mesh(up, cylZ(.6, 7, 12), MAT.steel, 0, 0, 3.5); mesh(up, new THREE.SphereGeometry(1.5, 16, 12), MAT.cast, 0, 0, 7.3);
+  // подшипники (светлые кольца) на концах валов
+  for (const y of [GB0 + .9, GB0 + GBL - .9]) mesh(dt, cylY(2.5, 1.4, 24, true), MAT.bearing, 0, y, ZC);
+  for (const y of [GB0 + .9, GB0 + GBL - .9]) mesh(dt, cylY(2.1, 1.4, 24, true), MAT.bearing, 0, y, ZC - D);
+
+  // ---------- первичный вал (от ведомого диска, вращается с ним) и ведущая шестерня постоянного зацепления ----------
+  const nIn = Math.round(TAU * 5.5 / .9);
+  DR.inShaft = spin(); mesh(DR.inShaft, cylY(1.1, 8.5, 20), MAT.steel, 0, 25.25, 0, true); mesh(DR.inShaft, gearGeo(5.5, nIn, 2.0, Math.PI + Math.PI / nIn), MAT.gear, 0, 29.4, 0, true);
+  // ---------- промежуточный вал (параллельно, на межосевом расстоянии D): крутится от первичного, несёт ведущие шестерни пар ----------
+  DR.cnt = spin(0, ZC - D); mesh(DR.cnt, cylY(1.0, 23, 16), MAT.steel, 0, 39, 0, true); mesh(DR.cnt, gearGeo(5.5, nIn, 2.0, 0), MAT.gear, 0, 29.4, 0, true);
+  // ---------- вторичный вал: выходной вал + кардан (~2 м) + крестовины + шестерня главной пары; вращается с колёсами · главная пара ----------
+  DR.drive = spin();
+  mesh(DR.drive, cylY(1.1, 27, 20), MAT.steel, 0, 42.5, 0, true);                    // выходной вал внутри КПП (y 29…56)
+  mesh(DR.drive, cylY(1.7, 91, 24), MAT.steel, 0, 104.5, 0, true); mesh(DR.drive, new THREE.BoxGeometry(.5, 60, .3), MAT.mark, 0, 104.5, 1.75);   // карданный вал + метка
+  joint(DR.drive, 57.5); joint(DR.drive, 151.5);
+  mesh(DR.drive, cylY(1.2, 6, 16), MAT.steel, 0, 154, 0, true); mesh(DR.drive, new THREE.CylinderGeometry(1.0, 2.6, 3.6, 24), MAT.gear, 0, 156.8, 0, true);   // ведущая шестерня главной пары
+  // ---------- пары передач 1…5: ведущая на промежуточном валу, ведомая свободно сидит на вторичном (rO / rC = передаточное число) ----------
+  GEARS.forEach((ratio, i) => {
+    const y = 32 + 3.4 * i, rC = D / (1 + ratio), rO = D * ratio / (1 + ratio), nC = Math.max(12, Math.round(TAU * rC / .9)), nO = Math.round(TAU * rO / .9);
+    mesh(DR.cnt, gearGeo(rC, nC, 2.2, 0), MAT.gear, 0, y, 0, true);
+    const o = mesh(dt, gearGeo(rO, nO, 2.2, Math.PI + Math.PI / nO), MAT.gear, 0, y, ZC, true); o.userData.k = nC / nO; DR.O.push(o);
   });
-  // --- выходной вал + карданный вал (~1 м) с крестовинами на концах и ведущей шестернёй главной пары ---
-  DR.drive = spin(62); mesh(DR.drive, cylY(1.2, 66, 24), MAT.steel, 0, 0, 0, true); mesh(DR.drive, new THREE.BoxGeometry(.5, 40, .3), MAT.mark, 0, 0, 1.25);
-  [-19, 29].forEach(y => { const j = new THREE.Group(); j.position.y = y; DR.drive.add(j);
-    mesh(j, cylX(.55, 4.6, 12), MAT.steel); mesh(j, cylY(.55, 4.6, 12).rotateX(Math.PI / 2), MAT.steel); mesh(j, new THREE.BoxGeometry(3.2, 2.2, 3.2), MAT.steel); });
-  mesh(DR.drive, new THREE.CylinderGeometry(.9, 2.4, 3.6, 24), MAT.gear, 0, 34.8, 0, true);
-  // --- задний мост: балка-кожух, дифференциал (шарообразный кожух), главная пара, полуоси ---
-  mesh(dt, cylX(2.8, 76, 32, true), MAT.hous, 0, 102, ZC); mesh(dt, new THREE.SphereGeometry(8, 32, 16), MAT.hous, 0, 102, ZC);
-  DR.axle = spin(102); mesh(DR.axle, gearGeo(5.5, 28, 1.4, 0).rotateZ(Math.PI / 2), MAT.gear, 0, 0, 0, true); mesh(DR.axle, cylX(.9, 76, 16), MAT.steel, 0, 0, 0, true);
-  // --- колёса (заднее правое и левое): шина, обод, 5 спиц, ступица, белая метка на внешней стороне ---
-  [43, -43].forEach(wx => {
-    const w = spin(102, wx), out = Math.sign(wx); DR.wheels.push(w);
+  // ---------- механизм переключения: 3 муфты-синхронизатора, 3 вилки (латунь) на 3 штоках с канавками ----------
+  [[33.7, -5], [40.5, 0], [47.6, 5]].forEach(([sy, rx]) => {
+    const sleeve = mesh(DR.drive, cylY(3.0, 1.6, 24), MAT.steel, 0, sy, 0, true);
+    const fg = grp(0, 0, 0);
+    mesh(fg, new THREE.TorusGeometry(3.7, .45, 8, 24, Math.PI).rotateX(Math.PI / 2), MAT.brass, 0, sy, ZC);       // вилка (U-образная скоба вокруг муфты)
+    mesh(fg, new THREE.BoxGeometry(.9, 1.1, 6.0), MAT.brass, 0, sy, ZC + 6.6);
+    if (rx) mesh(fg, new THREE.BoxGeometry(Math.abs(rx), 1.1, .9), MAT.brass, rx / 2, sy, ZC + 9.6);
+    mesh(fg, cylY(.6, 24, 12), MAT.steel, rx, gy, ZC + 9.6);                                                  // шток вдоль корпуса
+    for (const dy of [-6, 0, 6]) mesh(fg, cylY(.85, .35, 12), MAT.steel, rx, gy + dy, ZC + 9.6);              // канавки фиксатора
+    DR.forks.push({ g: fg, sleeve, y0: sy });
+  });
+
+  // ---------- задний мост (YD = 165): «банан»-балка, трубы полуосей, шаровидный корпус дифференциала ----------
+  const crv = new THREE.CatmullRomCurve3([-16, -8, 0, 8, 16].map(x => V(x, YD + 4.5 * (1 - (x / 16) ** 2), ZC)));
+  mesh(dt, new THREE.TubeGeometry(crv, 24, 3.6, 16, false), MAT.castD);
+  for (const sx of [-1, 1]) mesh(dt, cylX(2.6, 24, 24, true), MAT.castD, sx * 28, YD, ZC);
+  const dh = mesh(dt, new THREE.SphereGeometry(8.4, 32, 16), MAT.castD, 0, YD, ZC); dh.scale.set(1.25, .85, 1);
+  // внутри (вращается с колёсами): корпус-водило, 4 сателлита, 2 полуосевые шестерни, коронная шестерня, полуоси
+  DR.axle = grp(0, YD, ZC);
+  mesh(DR.axle, cylX(3.6, 8, 28, true), MAT.steelD);
+  for (let k = 0; k < 4; k++) { const sg = grp(0, 0, 0, DR.axle); sg.rotation.x = k * Math.PI / 2; DR.sat.push(mesh(sg, cylY(.9, 3.6, 16), MAT.gear, 0, 2.2, 0, true)); }
+  for (const sx of [-1, 1]) mesh(DR.axle, cylX(2.3, 1.2, 20), MAT.gear, sx * 2.6, 0, 0, true);
+  mesh(DR.axle, gearGeo(6.4, 48, 1.4, 0, { n: 8, rr: 4.1, hr: 1.1 }).rotateZ(Math.PI / 2), MAT.gear, 0, 0, 0, true);
+  mesh(DR.axle, cylX(.9, 90, 16), MAT.steel, 0, 0, 0, true);
+  // ---------- подвеска: 2 рессоры (3 листа) + 2 амортизатора (корпус и шток, наклон) ----------
+  for (const sx of [-1, 1]) {
+    const x = sx * 27;
+    [60, 48, 36].forEach((L, i) => mesh(dt, new THREE.BoxGeometry(5.5, L, .9), MAT.steel, x, YD, ZC - 5.2 - i));
+    mesh(dt, new THREE.BoxGeometry(7, 7, 4.5), MAT.cast, x, YD, ZC - 3);
+    for (const ey of [-30, 30]) mesh(dt, cylX(1.5, 5.5, 16), MAT.steel, x, YD + ey, ZC - 5.2);
+    const lo = V(sx * 34, YD + 4, ZC - 3), hi = V(sx * 34, YD + 7, ZC + 12);
+    link(lo, lo.clone().lerp(hi, .55), .95, MAT.steel); link(lo.clone().lerp(hi, .5), hi, .5, MAT.steel);
+  }
+  // ---------- колёса (заднее правое и левое) на полуосях, x = ±45: шина, обод, 5 спиц, ступица, тормозной диск, белая метка ----------
+  [45, -45].forEach(wx => {
+    const w = grp(wx, YD, ZC), out = Math.sign(wx); DR.wheels.push(w);
     const tire = mesh(w, new THREE.TorusGeometry(14.2, 2.3, 20, 56).rotateY(Math.PI / 2), MAT.rubber, 0, 0, 0, true); tire.scale.x = 2;
-    mesh(w, cylX(11.8, 8, 48, true), MAT.rim); mesh(w, cylX(3.4, 9, 24), MAT.rim, 0, 0, 0, true);
-    for (let k = 0; k < 5; k++) { const sp = new THREE.Group(); sp.rotation.x = k * TAU / 5; w.add(sp); mesh(sp, new THREE.BoxGeometry(1.4, 9, 2.4), MAT.rim, 0, 7.6, 0); }
+    mesh(w, cylX(11.8, 8, 48, true), MAT.rim); mesh(w, cylX(3.4, 9, 24), MAT.rim, 0, 0, 0, true); mesh(w, cylX(9.6, .7, 40), MAT.steel, -3 * out, 0, 0, true);
+    for (let k = 0; k < 5; k++) { const sp = grp(0, 0, 0, w); sp.rotation.x = k * TAU / 5; mesh(sp, new THREE.BoxGeometry(1.4, 9, 2.4), MAT.rim, 0, 7.6, 0); }
     mesh(w, new THREE.BoxGeometry(.3, 1, 3.5), MAT.mark, 4.7 * out, 0, 13);
   });
   // габариты видов; потом — «крышки» разреза и земля (чтобы не попадали в габариты)
   world.updateMatrixWorld(true); bboxAll.setFromObject(world); bboxT.setFromObject(dt); RA = Math.max(...bboxAll.getSize(V(0, 0, 0)).toArray());
   T.forEach(addTwins);
-  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.ShadowMaterial({ opacity: .35 })); gnd.position.set(0, 60, ZC - 16.5); gnd.receiveShadow = true; dt.add(gnd);
-  const grid = new THREE.GridHelper(400, 40, 0x555a63, 0x30343b); grid.rotation.x = Math.PI / 2; grid.position.set(0, 60, ZC - 16.5); dt.add(grid);
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.ShadowMaterial({ opacity: .35 })); gnd.position.set(0, 100, ZC - 16.5); gnd.receiveShadow = true; dt.add(gnd);
+  const grid = new THREE.GridHelper(700, 70, 0x555a63, 0x30343b); grid.rotation.x = Math.PI / 2; grid.position.set(0, 100, ZC - 16.5); dt.add(grid);
 }
 function driveAdvance(sdt) {                       // накопленные углы валов (с учётом замедления времени)
   const wR = sim.v / (TAU * WHEEL_R) * 60;
   sim.aIn += sim.clutchRPM * TAU / 60 * sdt; sim.aOut += wR * FINAL * TAU / 60 * sdt; sim.aWh += wR * TAU / 60 * sdt;
 }
 function driveUpdate() {
-  if (!DR) return; const p = sim.cPress;
-  DR.plate.position.y = 21.15 + 2.2 * p; DR.driven.position.y = 20.5 + .8 * p;                   // педаль сцепления раздвигает диски
-  DR.driven.rotation.y = DR.inShaft.rotation.y = sim.aIn; DR.cnt.rotation.y = -sim.aIn;            // вход КПП и промежуточный вал (в противоход)
-  DR.O.forEach(o => { o.rotation.y = sim.aIn * o.userData.k; });                                  // шестерни выходного вала — свои скорости по передачам
-  DR.drive.rotation.y = sim.aOut; DR.axle.rotation.x = sim.aWh; DR.wheels.forEach(w => { w.rotation.x = sim.aWh; });    // кардан, главная пара/полуоси, колесо
+  if (!DR) return; const p = sim.cPress, g = sim.gear;
+  DR.plate.position.y = 21.15 + 2.2 * p; DR.driven.position.y = 20.5 + .8 * p;                    // педаль сцепления раздвигает диски
+  DR.driven.rotation.y = DR.inShaft.rotation.y = sim.aIn; DR.cnt.rotation.y = -sim.aIn;           // первичный вал; промежуточный — в противоход
+  DR.O.forEach(o => { o.rotation.y = sim.aIn * o.userData.k; });                                  // ведомые шестерни пар — свои скорости (aIn / i)
+  DR.drive.rotation.y = sim.aOut; DR.axle.rotation.x = sim.aWh; DR.wheels.forEach(w => { w.rotation.x = sim.aWh; });   // вторичный вал + кардан; водило/полуоси; колёса
+  DR.sat.forEach(s => { s.rotation.y = sim.aDiff || 0; });                                        // сателлиты: ≠0 только при разнице скоростей полуосей (прямо = 0)
+  const tgt = [0, 0, 0]; if (g > 0) tgt[(g - 1) >> 1] = (g & 1) ? 1.2 : -1.2; else if (g < 0) tgt[2] = -1.2;   // вилки: 1,2 | 3,4 | 5,R
+  DR.forks.forEach((f, i) => { DR.fk[i] += (tgt[i] - DR.fk[i]) * .25; f.g.position.y = DR.fk[i]; f.sleeve.position.y = f.y0 + DR.fk[i]; });
+  const lx = g === 0 ? 0 : g > 0 ? ((g - 1) >> 1) - 1 : 1, ly = g === 0 ? 0 : g > 0 ? ((g & 1) ? 1 : -1) : -1;   // рычаг: влево/центр/вправо, вперёд/назад
+  DR.lv.x += (lx * .16 - DR.lv.x) * .25; DR.lv.y += (ly * .22 - DR.lv.y) * .25; DR.lever.rotation.y = DR.lv.x; DR.lever.rotation.x = DR.lv.y;
   MAT.friction.emissiveIntensity = Math.min(1, sim.cheat);                                         // накладки сцепления краснеют от проскальзывания
 }
 // ===== Спидометр и график оборотов =====
@@ -812,13 +878,13 @@ const tAS = k => rad(135) + Math.min(k, 280) / 280 * rad(270);
 function drawSpeedo(dt) {
   const kmh = Math.abs(sim.v * 3.6); spN += (kmh - spN) * (1 - Math.exp(-Math.max(0, dt) / .12)); const s = sps, c = s / 2, Rr = s * .44, g = sg;
   g.clearRect(0, 0, s, s); g.beginPath(); g.arc(c, c, s / 2 - 1, 0, 7); g.fillStyle = 'rgba(26,30,37,.85)'; g.fill();
-  g.strokeStyle = g.fillStyle = '#e8eaed'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 ' + s * .08 + 'px system-ui';
+  g.strokeStyle = g.fillStyle = '#e8eaed'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 ' + s * .08 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   for (let k = 0; k <= 280; k += 20) { const a = tAS(k), mj = k % 40 === 0, ca = Math.cos(a), sa = Math.sin(a), r2 = Rr * (mj ? .82 : .9);
     g.lineWidth = mj ? 2 : 1; g.beginPath(); g.moveTo(c + ca * Rr, c + sa * Rr); g.lineTo(c + ca * r2, c + sa * r2); g.stroke(); if (mj && k % 80 === 0) g.fillText(k, c + ca * Rr * .66, c + sa * Rr * .66); }
   const a = tAS(spN), ca = Math.cos(a), sa = Math.sin(a); g.strokeStyle = '#4a9eff'; g.lineWidth = s * .025; g.lineCap = 'round';
   g.beginPath(); g.moveTo(c - ca * Rr * .1, c - sa * Rr * .1); g.lineTo(c + ca * Rr * .88, c + sa * Rr * .88); g.stroke();
-  g.fillStyle = '#e8eaed'; g.font = '700 ' + s * .14 + 'px system-ui'; g.fillText(Math.round(kmh), c, c + Rr * .48);
-  g.globalAlpha = .7; g.font = s * .07 + 'px system-ui'; g.fillText('км/ч · ' + (sim.gear < 0 ? 'R' : sim.gear || 'N'), c, c + Rr * .72); g.globalAlpha = 1;
+  g.fillStyle = '#e8eaed'; g.font = '700 ' + s * .14 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui'; g.fillText(Math.round(kmh), c, c + Rr * .48);
+  g.globalAlpha = .7; g.font = s * .07 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui'; g.fillText('км/ч · ' + (sim.gear < 0 ? 'R' : sim.gear || 'N'), c, c + Rr * .72); g.globalAlpha = 1;
 }
 const gcv = $('graph'), gg = gcv.getContext('2d'), hist = []; let ht = 0;
 (() => { const d = Math.min(devicePixelRatio, 2); gcv.width = 220 * d; gcv.height = 90 * d; gg.setTransform(d, 0, 0, d, 0, 0); })();
@@ -828,7 +894,7 @@ function drawGraph(dt) {
   for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(0, H * i / 4); g.lineTo(W, H * i / 4); g.stroke(); }
   [[0, '#e8590c'], [1, '#4a9eff']].forEach(([k, col]) => { g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath();
     hist.forEach((p, i) => { const x = i / 100 * W, y = H - 6 - Math.min(1, p[k] / REDLINE) * (H - 12); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke(); });
-  g.font = '10px system-ui'; g.fillStyle = '#e8590c'; g.fillText('двигатель', 6, 11); g.fillStyle = '#4a9eff'; g.fillText('вход КПП (колёса)', 66, 11);
+  g.font = '10px Barlow Condensed, Sofia Sans Condensed, system-ui'; g.fillStyle = '#e8590c'; g.fillText('двигатель', 6, 11); g.fillStyle = '#4a9eff'; g.fillText('вход КПП (колёса)', 66, 11);
 }
 
 // ===== Датчик температуры =====
@@ -873,7 +939,7 @@ function drawTempTach(dt) {
   // Метки
   g.strokeStyle = g.fillStyle = '#e8eaed';
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '600 ' + s * .075 + 'px system-ui';
+  g.font = '600 ' + s * .075 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   for (let t = 0; t <= TEMP_MAX_DISPLAY; t += 20) {
     const a = tAmp(t), mj = (t % 40 === 0);
     const ca = Math.cos(a), sa = Math.sin(a), r2 = Rr * (mj ? .78 : .88);
@@ -912,19 +978,19 @@ function drawTempTach(dt) {
 
   // Цифра температуры
   g.fillStyle = isDead ? '#e03131' : (isCrit ? '#e03131' : '#e8eaed');
-  g.font = '700 ' + s * .16 + 'px system-ui';
+  g.font = '700 ' + s * .16 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   g.fillText(Math.round(sim.temp) + '°', c, c + Rr * .45);
-  g.font = s * .075 + 'px system-ui';
+  g.font = s * .075 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
   g.fillStyle = '#8892a0';
   g.fillText('°C', c, c + Rr * .62);
   
   // Иконка при перегреве
   if (isDead) {
-    g.font = '700 ' + s * .12 + 'px system-ui';
+    g.font = '700 ' + s * .12 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
     g.fillStyle = '#e03131';
     g.fillText('🔥', c, c - Rr * .55);
   } else if (isCrit && Math.sin(warnBlink) > 0) {
-    g.font = '700 ' + s * .12 + 'px system-ui';
+    g.font = '700 ' + s * .12 + 'px Barlow Condensed, Sofia Sans Condensed, system-ui';
     g.fillStyle = '#e03131';
     g.fillText('⚠', c, c - Rr * .55);
   }
@@ -943,7 +1009,7 @@ function initSmoke() {
   });
   const pts = new THREE.Points(geo, mat);
   pts.frustumCulled = false;
-  scene.add(pts);
+  scene.add(pts); sim.smokePts = pts;
   sim.smokeParts = [];
   for (let i = 0; i < N; i++) sim.smokeParts.push({ life: -1, vx: 0, vy: 0, vz: 0 });
   sim.smokeGeo = geo;
@@ -986,6 +1052,96 @@ function updSmoke(dt) {
   sim.smokeGeo.attributes.position.needsUpdate = true;
   sim.smokeGeo.attributes.color.needsUpdate = true;
 }
+// ===== Геймпад (по мотивам системы управления друга: значения триггеров вместо «нажато/нет», мёртвые зоны, выбор активного пада по движению) + вибрация =====
+const PAD = { i: -1, gas: false, clutch: false, prev: [], dzT: .05, dzS: .14, on: false };
+const padBtn = (g, n) => { const b = g.buttons[n]; return !b ? 0 : typeof b === 'object' ? (b.value > 0 ? b.value : b.pressed ? 1 : 0) : (b ? 1 : 0); };
+const shiftGear = d => setGear(Math.max(-1, Math.min(5, sim.gear + d)));
+function stepTimeScale(d) { const b = [...$('ts').children], k = b.findIndex(x => x.className === ''); b[(Math.max(k, 0) + d + b.length) % b.length].click(); }
+function padPoll(dt) {
+  if (!navigator.getGamepads) return; const list = navigator.getGamepads(); let g = PAD.i >= 0 ? list[PAD.i] : null;
+  if (!g || !g.connected) { g = null; PAD.i = -1;
+    for (const p of list) if (p && p.connected && (p.buttons.some((b, k) => padBtn(p, k) > .3) || p.axes.some(a => Math.abs(a) > .5))) { g = p; PAD.i = p.index; break; } }
+  if (!g) { if (PAD.gas) { sim.target = 0; PAD.gas = false; } if (PAD.clutch) { sim.cTarget = 0; PAD.clutch = false; } PAD.on = false; return; }
+  if (!PAD.on) { PAD.on = true; status('🎮 ' + (g.id || 'геймпад').slice(0, 40)); }
+  const edge = k => { const n = padBtn(g, k) > .5, o = !!PAD.prev[k]; PAD.prev[k] = n; return n && !o; };
+  const rt = padBtn(g, 7), lt = padBtn(g, 6);                                              // RT — газ, LT — сцепление (аналоговые значения)
+  if (rt > PAD.dzT) { sim.target = rt; PAD.gas = true; } else if (PAD.gas) { sim.target = 0; PAD.gas = false; }
+  if (lt > PAD.dzT) { sim.cTarget = lt; PAD.clutch = true; } else if (PAD.clutch) { sim.cTarget = 0; PAD.clutch = false; }
+  if (edge(5) || edge(12)) shiftGear(1); if (edge(4) || edge(13)) shiftGear(-1);          // RB / ↑ — выше, LB / ↓ — ниже
+  if (edge(0)) { if (sim.destroyed) repairEngine(); else startEngine(); }                  // A — завести / починить
+  if (edge(1)) stopEngine(); if (edge(2)) toggleHand(); if (edge(3)) setXray(!xr);        // B — стоп, X — ручник, Y — разрез
+  if (edge(9)) $('pause').click(); if (edge(8)) $('vw').click();                           // Start — пауза, Back — вид
+  if (edge(14)) stepTimeScale(1); if (edge(15)) stepTimeScale(-1);                         // ← / → — замедление времени
+  const ax = Math.abs(g.axes[2]) > PAD.dzS ? g.axes[2] : 0, ay = Math.abs(g.axes[3]) > PAD.dzS ? g.axes[3] : 0;   // правый стик — вращение камеры
+  if (ax || ay) { const off = camera.position.clone().sub(controls.target), sph = new THREE.Spherical().setFromVector3(off);
+    sph.theta -= ax * dt * 2.2; sph.phi = clamp(sph.phi + ay * dt * 1.6, .12, Math.PI - .12); off.setFromSpherical(sph); camera.position.copy(controls.target).add(off); controls.update(); }
+}
+const hap = { st: null, cr: false, de: false, cut: false, gear: 0, last: 0 };
+function buzz(ms, weak = .3, strong = .3) {                                               // вибрация телефона и геймпада
+  const now = performance.now(); if (now - hap.last < 40) return; hap.last = now;
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* нет API */ }
+  const g = PAD.i >= 0 && navigator.getGamepads ? navigator.getGamepads()[PAD.i] : null;
+  if (g && g.vibrationActuator && g.vibrationActuator.playEffect) g.vibrationActuator.playEffect('dual-rumble', { duration: ms, weakMagnitude: weak, strongMagnitude: strong }).catch(() => {});
+}
+function hapticsUpdate() {
+  if (hap.cr !== sim.cranking) { if (sim.cranking) buzz(500, .4, .5); hap.cr = sim.cranking; }                                   // стартёр
+  if (hap.st === false && sim.stalled && !sim.cranking && !sim.destroyed) buzz(250, .2, .9); hap.st = sim.stalled;                // заглох
+  if (sim.destroyed && !hap.de) buzz(900, 1, 1); hap.de = sim.destroyed;                                                          // разрушение
+  if (sim.cut && !hap.cut) buzz(60, .5, .1); hap.cut = sim.cut;                                                                   // отсечка на редлайне
+  if (sim.gear !== hap.gear) { buzz(35, .2, .6); hap.gear = sim.gear; }                                                           // переключение
+}
+
+// ===== Каталог двигателей: модуль Moteur3D из игры друга (9 компоновок: I3 / I4 / I6 / V6 / V8 / H4 / H6 / V10 / V12) =====
+const cat = { grp: null, data: null, id: 'mine', style: 0, ecl: 0, eclT: 0, t: 0, cyl: 4, hw: 1, mats: [], box: new THREE.Box3(), busy: false };
+const loadScript = src => new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error('не загрузился ' + src)); document.head.appendChild(el); });
+async function ensureM3D() {
+  if (window.Moteur3D) return;
+  window.THREE = Object.assign({}, THREE);                       // модуль друга (ES5) ждёт глобальный THREE
+  await loadScript('lib/moteur3d.js');
+  if (!window.Moteur3D) throw new Error('Moteur3D не инициализировался');
+}
+const catMaterials = grp => { const set = new Set(); grp.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => set.add(m)); }); return [...set]; };
+function catXray(on) { cat.mats.forEach(m => { if (m.userData.s0 === undefined) m.userData.s0 = m.side; m.side = on ? THREE.DoubleSide : m.userData.s0; m.clippingPlanes = on ? [cutPlane] : null; m.needsUpdate = true; }); }
+function catDispose() { if (!cat.grp) return; scene.remove(cat.grp); try { Moteur3D.liberer(cat.grp); } catch (e) { cat.grp.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } cat.grp = null; cat.mats = []; }
+function setLights(r) {
+  sun.position.set(5, 10, 7).multiplyScalar(r / 10); const sc = sun.shadow.camera; sc.left = sc.bottom = -r * .8; sc.right = sc.top = r * .8; sc.near = r * .01; sc.far = r * 4; sc.updateProjectionMatrix();
+  pl[0].position.set(-r * .15, 0, r * .08); pl[1].position.set(r * .15, 0, r * .08); pl.forEach(l => { l.intensity = r * r * .04; l.distance = r * .6; });
+}
+function breakCatalog() { if (!cat.grp) return; Moteur3D.casse(cat.grp, { quoi: ['piston', 'bielle', 'soupape'][Math.floor(Math.random() * 3)], cyl: Math.floor(Math.random() * cat.cyl), cote: Math.random() < .5 ? 'adm' : 'ech' }); }
+function unbreakCatalog() { if (cat.grp) Moteur3D.casse(cat.grp, { quoi: '' }); }
+async function selectEngine(id) {
+  if (cat.busy) return; cat.busy = true;
+  const back = msg => { catDispose(); world.visible = true; if (sim.smokePts) sim.smokePts.visible = true; cat.id = 'mine'; $('eng').value = 'mine'; $('cv').style.display = 'none'; setView(0); if (msg) status(msg); };
+  try {
+    if (id === 'mine') { back('Мой двигатель: реальная модель'); return; }
+    status('Каталог: загрузка модуля…'); await ensureM3D();
+    if (!cat.data) { const r = await fetch('lib/catalog.json'); if (!r.ok) throw new Error('lib/catalog.json: ' + r.status); cat.data = await r.json(); }
+    const e = cat.data[id]; if (!e) throw new Error('нет описания «' + id + '»');
+    catDispose();
+    const grp = Moteur3D.construire(JSON.parse(JSON.stringify(e.desc)), {});
+    grp.updateMatrixWorld(true); grp.position.sub(new THREE.Box3().setFromObject(grp).getCenter(V(0, 0, 0)));      // центрируем: плоскость реза проходит через середину
+    grp.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = false; });
+    scene.add(grp); cat.grp = grp; cat.id = id; cat.cyl = e.desc.cyl; cat.t = 0; cat.style = 0; cat.ecl = cat.eclT = 0; cat.mats = catMaterials(grp);
+    grp.updateMatrixWorld(true); cat.box.setFromObject(grp); const sz = cat.box.getSize(V(0, 0, 0)); cat.hw = Math.max(Math.abs(cat.box.min.z), Math.abs(cat.box.max.z)) || 1;
+    world.visible = false; if (sim.smokePts) sim.smokePts.visible = false; if (xr) catXray(true); if (sim.destroyed) breakCatalog();
+    setLights(Math.max(sz.x, sz.y, sz.z)); fitBox(cat.box); $('cv').style.display = ''; $('cv').textContent = 'Стиль: обычный';
+    const st = Moteur3D.stats(grp); status('Каталог: ' + e.name + ' · ' + (Math.round(st.triangles / 100) / 10) + 'k △ · ' + st.appels + ' вызовов');
+  } catch (err) { console.error(err); back('Каталог недоступен: ' + err.message); }
+  finally { cat.busy = false; }
+}
+const CAT_STYLES = ['обычный', 'прозрачный', 'разнесённый'];
+$('cv').onclick = () => {
+  if (!cat.grp) return; cat.style = (cat.style + 1) % 3; $('cv').textContent = 'Стиль: ' + CAT_STYLES[cat.style];
+  Moteur3D.vue(cat.grp, cat.style === 1 ? 'transparence' : cat.style === 2 ? 'eclatee' : 'normal', cat.ecl); cat.eclT = cat.style === 2 ? 1 : 0;
+};
+$('eng').onchange = e => selectEngine(e.target.value);
+function catUpdate(dt) {                                                                       // двигатель из каталога крутится от тех же RPM, буста и температуры
+  if (!cat.grp) return; if (!sim.paused) cat.t += dt * sim.timeScale;
+  const o = { boost: sim.boost, egt: sim.stalled ? 0 : 250 + 650 * Math.min(1, sim.rpm / REDLINE) * (.4 + .6 * sim.thr) + 120 * sim.boost };   // накал выпускных коллекторов
+  if (Math.abs(cat.eclT - cat.ecl) > .003) { cat.ecl += (cat.eclT - cat.ecl) * Math.min(1, dt * 6); o.vue = cat.style === 2 ? 'eclatee' : cat.style === 1 ? 'transparence' : 'normal'; o.eclat = cat.ecl; }
+  Moteur3D.animer(cat.grp, cat.t, sim.rpm, o);
+}
+
 // ===== Камера и свет по размерам модели =====
 function fitAll() {
   const t = Math.tan(camera.fov * Math.PI / 360), s = bbox.getSize(V(0, 0, 0)), d = 1.15 * (Math.max(s.y / (2 * t), s.x / (2 * t * camera.aspect)) + s.z / 2);
@@ -1001,7 +1157,7 @@ function fitBox(b) {
   controls.minDistance = d * .15; controls.maxDistance = d * 4; camera.near = d / 200; camera.far = d * 30; camera.updateProjectionMatrix(); controls.update();
 }
 let view = 0; const VIEWS = ['мотор', 'трансмиссия', 'всё'];
-function setView(i) { view = i; $('vw').textContent = 'Вид: ' + VIEWS[i]; if (i === 0) fitAll(); else fitBox(i === 1 ? bboxT : bboxAll); }
+function setView(i) { if (cat.grp) { fitBox(cat.box); return; } view = i; $('vw').textContent = 'Вид: ' + VIEWS[i]; if (i === 0) fitAll(); else fitBox(i === 1 ? bboxT : bboxAll); }
 $('vw').onclick = () => setView((view + 1) % 3); $('reset').onclick = () => setView(view);
 
 // ===== Главный цикл =====
@@ -1027,6 +1183,7 @@ function frame(now) {
     $('stt').textContent = dead ? '💥 Двигатель разрушен' : 'Двигатель заглох'; $('sts').textContent = dead ? 'Перегрев. Нужен ремонт.' : 'выжми сцепление или поставь N, затем';
     $('startb').textContent = dead ? '🔧 Починить двигатель' : 'Завести (E)'; $('stall').firstElementChild.style.outline = dead ? '2px solid #e03131' : 'none'; }
   const tv = $('tempv'); if (tv) { tv.textContent = Math.round(sim.temp); tv.style.color = sim.destroyed ? '#e03131' : sim.temp > TEMP_CRIT ? '#e03131' : sim.temp > TEMP_WARN ? '#facc15' : '#4cc38a'; }
+  padPoll(dt); catUpdate(dt); hapticsUpdate();
   gdt += dt; if (!MOBILE || (gf++ & 1)) { drawTach(gdt); drawTurboTach(gdt); drawSpeedo(gdt); drawGraph(gdt); drawTempTach(gdt); gdt = 0; }   // на телефоне стрелки обновляются через кадр
   audioUpdate(); controls.update();
   renderer.info.reset(); usePost ? composer.render() : renderer.render(scene, camera);
@@ -1039,6 +1196,12 @@ addEventListener('resize', resize); applyQ();
 const lt = t => { $('lt').textContent = t; };
 const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));   // дать интерфейсу перерисоваться
 (async () => {
+  if (document.fonts) { document.fonts.load("600 16px 'Barlow Condensed'", 'км/ч об/мин 0123').catch(() => {}); document.fonts.load("400 14px 'Share Tech Mono'", 'Передача 0123').catch(() => {}); }
+  // загрузочный экран в стиле BIOS (идея из игры друга): строки печатаются, пока грузится модель
+  const bios = $('bios'), reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const BL = ['ENGINE-SIM BIOS v2.0', 'ПАМЯТЬ .................... OK', 'ДАТЧИКИ ДВИГАТЕЛЯ ......... OK', 'ТРАНСМИССИЯ ............... OK', 'КАТАЛОГ ДВИГАТЕЛЕЙ (9) .... OK', 'ГЕЙМПАД / ВИБРАЦИЯ ........ OK', 'ЗАГРУЗКА МОДЕЛИ ...'];
+  let bi = 0; const bt = setInterval(() => { if (bi < BL.length) bios.textContent += BL[bi++] + '\n'; }, 170);
+  if (reduced) { bios.textContent = BL.join('\n') + '\n'; bi = BL.length; }
   const dr = new DRACOLoader(); dr.setDecoderPath('vendor/jsm/libs/draco/gltf/');
   const gl = new GLTFLoader().setDRACOLoader(dr).setMeshoptDecoder(MeshoptDecoder);
   const t0 = performance.now(), T = n => console.log('[загрузка] ' + n + ': ' + Math.round(performance.now() - t0) + ' мс');
@@ -1051,8 +1214,8 @@ const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)
     const cnt = buildRig(gltf); initSmoke(); T('механизм собран'); lt('Подготовка графики…'); await tick();
     fitAll(); resize(); status(Object.entries(cnt).map(([k, v]) => k + ':' + v).join(' ')); T('готово');
   } catch (err) {
-    clearTimeout(wd); console.error(err); $('lt').innerHTML = 'Не удалось загрузить <code>models/engine.glb</code>:<br>' + String(err.message || err) + '<br><small>F12 — консоль</small>'; return;
+    clearTimeout(wd); clearInterval(bt); console.error(err); $('lt').innerHTML = 'Не удалось загрузить <code>models/engine.glb</code>:<br>' + String(err.message || err) + '<br><small>F12 — консоль</small>'; return;
   }
-  clearTimeout(wd); $('load').style.opacity = 0; setTimeout(() => $('load').remove(), 600); requestAnimationFrame(frame);
+  clearTimeout(wd); clearInterval(bt); bios.textContent = BL.join('\n') + '\nГОТОВО.\nC:\\ENGINESIM> START_'; await new Promise(r => setTimeout(r, reduced ? 0 : 600)); $('load').style.opacity = 0; setTimeout(() => $('load').remove(), 600); requestAnimationFrame(frame);
   upgradeEnv();
 })();

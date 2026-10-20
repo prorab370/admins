@@ -1,0 +1,6 @@
+Шрифты (SIL Open Font License 1.1), взяты из игры «Simulation Moteur» с разрешения автора:
+  Barlow / Barlow Condensed / Barlow Semi Condensed (Jeremy Tribby) — латиница, цифры
+  Share Tech Mono (Carrois Type Design) — моноширинные показания приборов
+  Sofia Sans Condensed / Semi Condensed — кириллица (см. OFL-SofiaSans*.txt)
+  Noto Sans Mono Condensed — кириллица моно (см. OFL-NotoSansMono.txt)
+Тексты лицензий OFL лежат рядом.
