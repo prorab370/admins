@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>TEST 3D</title>
+<!-- =====================================================================================
+     POURQUOI CETTE PAGE EXISTE
+     Quatre versions de suite ont corrige un defaut que je ne pouvais pas voir : WebGL ne
+     tourne pas dans le banc, donc chaque diagnostic partait d'une capture d'ecran et d'une
+     hypothese. Ca a marche deux fois et echoue deux fois, ce qui est le rendement normal de
+     la devinette.
+     Cette page n'est pas un morceau du jeu. Elle ne charge ni le moteur, ni le son, ni
+     l'interface : uniquement three.js et route3d.js, et elle ECRIT ce qu'elle trouve. Elle
+     separe donc la seule question qui compte en deux questions distinctes -
+       1. est-ce que WebGL et three.js fonctionnent sur CE telephone ?
+       2. est-ce que mon branchement dans index.html est correct ?
+     - alors qu'une capture du jeu les melange et ne permet de repondre ni a l'une ni a
+     l'autre. Une capture de cette page repond aux deux.
+     ===================================================================================== -->
+<style>
+  html,body{ margin:0; padding:0; background:#000; color:#7ef29a;
+             font-family:'Share Tech Mono',ui-monospace,monospace; }
+  #rapport{ padding:10px 12px; font-size:13px; line-height:1.55; white-space:pre-wrap;
+            border-bottom:1px solid #1d5a2e; }
+  .ok{ color:#7ef29a; } .ko{ color:#ff6b6b; } .att{ color:#ffb000; }
+  #cadre{ position:relative; width:100%; height:210px; background:#111; }
+  #track{ width:100%; height:100%; }
+  #panneau{ width:100%; height:100%; position:relative; }
+  #vue{ display:block; width:100%; height:100%; }
+  /* ===== L'HABILLAGE DU JEU, REPRODUIT A L'IDENTIQUE =====
+     Ce sont les trois ingredients qui, dans index.html, entourent le canevas et qui n'existent
+     pas ici : un ancetre TRANSFORME (le rail du carrousel), un ancetre qui CLIPPE avec un
+     coin arrondi, et deux calques FIXES plein ecran par-dessus (l'effet CRT et la fumee).
+     Chacun peut empecher le navigateur de donner au canevas son propre calque materiel - et
+     un canevas sans calque materiel doit etre RECOPIE dans la page a chaque image, ce qui
+     ramene exactement le trajet qu'on croyait avoir supprime.
+     La taille du cadre ne change pas d'un pixel entre les deux etats : on compare bien deux
+     fois le meme nombre de pixels. */
+  .commeJeu#cadre{ overflow:hidden; border-radius:5px; border:1px solid #1d5a2e; }
+  .commeJeu #track{ display:flex; transform:translateX(0); transition:transform .26s cubic-bezier(.22,.61,.36,1); }
+  .commeJeu #panneau{ flex:0 0 100%; }
+  #faussecrt{ display:none; pointer-events:none; position:fixed; inset:0; z-index:50;
+    background:
+      repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.16) 3px, rgba(0,0,0,0) 4px),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.55) 100%);
+    animation:flicker 6s infinite; }
+  @keyframes flicker{ 0%,96%,100%{opacity:1;} 97%{opacity:0.92;} 98%{opacity:1;} }
+  #faussefumee{ display:none; position:fixed; inset:0; width:100%; height:100%;
+    pointer-events:none; z-index:40; }
+  #tableau{ padding:10px 12px; font-size:13px; line-height:1.6; white-space:pre-wrap;
+            border-top:1px solid #1d5a2e; }
+  #fps{ position:absolute; left:8px; top:8px; background:rgba(0,0,0,0.6);
+        padding:4px 8px; font-size:14px; }
+</style>
+</head>
+<body>
+<div id="rapport">TEST 3D — demarrage...</div>
+<div id="cadre"><div id="track"><div id="panneau"><canvas id="vue"></canvas></div></div><div id="fps">--</div></div>
+<canvas id="faussefumee"></canvas>
+<div id="faussecrt"></div>
+<div id="tableau">BANC : quatre phases de 2,5 s. Ne touchez a rien.</div>
+
+<script>
+var R = document.getElementById('rapport');
+var lignes = [];
+function dire(txt, cls){
+  lignes.push('<span class="' + (cls || 'ok') + '">' + txt + '</span>');
+  R.innerHTML = lignes.join('\n');
+}
+
+dire('URL de cette page : ' + location.href);
+
+/* ===== 1. WEBGL EXISTE-T-IL, ET LEQUEL ? =====
+   On le demande AVANT de charger quoi que ce soit. Si la reponse est non, three.js n'y peut
+   rien et le reste du rapport ne veut plus rien dire. */
+var gl = null, infoGL = '';
+try{
+  var cTest = document.createElement('canvas');
+  gl = cTest.getContext('webgl2') || cTest.getContext('webgl') || cTest.getContext('experimental-webgl');
+  if (gl){
+    var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    infoGL = dbg ? (gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) + ' / ' + gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL))
+                 : 'carte non identifiee';
+    dire('WebGL : OUI  (' + gl.getParameter(gl.VERSION) + ')');
+    dire('Carte : ' + infoGL);
+    dire('Taille de texture max : ' + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+  } else {
+    dire('WebGL : NON — cet appareil ne peut pas faire de 3D', 'ko');
+  }
+}catch(e){ dire('WebGL : ERREUR ' + e.message, 'ko'); }
+
+dire('devicePixelRatio : ' + (window.devicePixelRatio || 1));
+
+/* ===== 2. LES DEUX FICHIERS SE CHARGENT-ILS, ET DEPUIS OU ? =====
+   Meme liste de chemins que le jeu, meme ordre : si le jeu ne les trouve pas, cette page ne
+   les trouvera pas non plus, et on saura que le probleme est la et pas ailleurs. */
+var BASES = ['assets/', 'simulation-moteur/assets/', '/simulation-moteur/assets/', './assets/'];
+var iB = 0;
+function charger(url, ok, ko){
+  var t = document.createElement('script');
+  t.src = url; t.async = false; t.onload = ok; t.onerror = ko;
+  document.head.appendChild(t);
+}
+function essayer(){
+  if (iB >= BASES.length){
+    dire('three.js / route3d.js : INTROUVABLES depuis cette page', 'ko');
+    dire('  -> chemins essayes : ' + BASES.join('  '), 'ko');
+    return;
+  }
+  var b = BASES[iB++];
+  charger(b + 'three.min.js?d=' + Date.now(), function(){
+    charger(b + 'route3d.js?d=' + Date.now(), function(){
+      dire('Fichiers trouves dans : ' + b);
+      dire('three.js revision : ' + (window.THREE ? THREE.REVISION : '?'));
+      dire('route3d version : ' + (window.Route3D && Route3D.version ? Route3D.version : 'ANCIENNE (sans numero)'),
+           (window.Route3D && Route3D.version) ? 'ok' : 'att');
+      lancer();
+    }, essayer);
+  }, essayer);
+}
+essayer();
+
+/* ===== 3. QUATRE PHASES, ET ELLES REPONDENT A UNE QUESTION CHACUNE =====
+   V0.7.15. La premiere version de cette page dessinait une route simple dans un cadre nu et
+   rendait 60 images par seconde, la ou le jeu en rendait 20. Deux differences restaient, et
+   toutes deux tiennent debout :
+
+     LE CONTENU. Le jeu dessine en plus le bas-cote, trois glissieres et vingt-quatre
+     vehicules, et il RECRIT tous ces tampons a chaque image. Un televersement vers un tampon
+     que la carte est peut-etre en train de lire peut la faire attendre - et cette attente ne
+     depend pas du nombre de pixels, ce qui collerait avec le fait que diviser la resolution
+     par six n'a rien change.
+
+     LE CADRE. Dans le jeu, le canevas est dans un carrousel TRANSFORME, clippe par un
+     conteneur a coins ARRONDIS, sous deux calques FIXES plein ecran. Chacun de ces trois
+     points peut empecher le navigateur de lui donner son propre calque materiel ; et un
+     canevas sans calque materiel doit etre recopie dans la page a chaque image. Ce serait le
+     meme trajet que le drawImage supprime en V0.7.13, refait par le compositeur - ce qui
+     expliquerait pourquoi le supprimer n'a rien gagne.
+
+   On ne choisit pas entre les deux : on les mesure. Quatre phases, meme cadre, meme nombre
+   de pixels, et un tableau a la fin.
+     1 SCENE TEST    la route seule, cadre nu               -> le point de depart
+     2 SCENE JEU     + bas-cote, glissieres, 24 vehicules   -> ce que coute le CONTENU
+     3 JEU FIGEE     idem, mais plus aucun televersement    -> ce que coutent les ECRITURES
+     4 JEU + CADRE   scene du jeu dans l'habillage du jeu   -> ce que coute le CADRE
+   Si la chute est entre 1 et 2, c'est le contenu ; entre 2 et 3, les ecritures ; entre 2 et
+   4, la mise en page. Et si les quatre restent a 60, alors le defaut n'est dans aucun des
+   deux et il faudra le chercher ailleurs - ce qui est aussi une reponse.                  */
+function lancer(){
+  var c = document.getElementById('vue');
+  var cadre = document.getElementById('cadre');
+  var crt = document.getElementById('faussecrt');
+  var fumee = document.getElementById('faussefumee');
+  if (!Route3D.dispo()){ dire('Route3D.dispo() : NON', 'ko'); return; }
+  if (!Route3D.init(c, 7, { voies: 2, bidirect: true })){
+    dire('Route3D.init : ECHEC — ' + Route3D.erreur(), 'ko'); return;
+  }
+  dire('Route3D.init : OK');
+
+  function courbure(z){ return Math.sin(z * 0.0046) / 340; }
+  function pente(z){ return 0.05 * Math.cos(z * 0.0038); }
+
+  /* La charge du jeu, reproduite a l'identique en NOMBRE et en FORME. Les valeurs n'ont pas
+     besoin d'etre les vraies - la carte graphique ne sait pas ou va une voiture, elle sait
+     combien il y en a et combien de fois on redecrit sa position. */
+  function bau(s){ return 2.5 + Math.sin(s * 0.004); }
+  var rails = [ function(){ return -4.25; },
+                function(){ return  4.25; },
+                function(s){ return (s % 1800 < 260) ? 8.0 : null; } ];
+  var trafic = [];
+  for (var k = 0; k < 24; k++){
+    trafic.push({ d: 12 + k * 24, lat: (k % 3 - 1) * 1.6, lon: 4.3, larg: 1.8,
+                  haut: 1.45, face: (k % 4 === 0), camion: (k % 7 === 0) });
+  }
+
+  var PHASES = [
+    { nom:'SCENE TEST',  jeu:false, fige:false, cadre:false },
+    { nom:'SCENE JEU',   jeu:true,  fige:false, cadre:false },
+    { nom:'JEU FIGEE',   jeu:true,  fige:true,  cadre:false },
+    { nom:'JEU + CADRE', jeu:true,  fige:false, cadre:true  }
+  ];
+  var CHAUFFE = 600, DUREE = 2500;
+  var ip = 0, t0 = 0, n = 0, res = [];
+
+  function appliquerCadre(oui){
+    cadre.className = oui ? 'commeJeu' : '';
+    crt.style.display   = oui ? 'block' : 'none';
+    fumee.style.display = oui ? 'block' : 'none';
+    if (oui && !fumee.width){
+      /* Meme surface que dans le jeu : plein ecran au rapport de pixels de l'appareil. Un
+         calque transparent se paie a la composition meme quand il ne contient rien. */
+      var d = window.devicePixelRatio || 1;
+      fumee.width  = Math.floor(window.innerWidth  * d);
+      fumee.height = Math.floor(window.innerHeight * d);
+    }
+  }
+  appliquerCadre(false);
+
+  var s = 0, dernier = performance.now(), pire = 0, cumul = 0, nAff = 0;
+  var fps = document.getElementById('fps');
+  var tab = document.getElementById('tableau');
+
+  function image(t){
+    var dt = Math.min(0.05, (t - dernier) / 1000);
+    var ms = t - dernier;
+    dernier = t;
+    s += 25 * dt;                                   // 90 km/h
+    var ph = PHASES[ip];
+    try{
+      Route3D.suivreTaille(c, window.devicePixelRatio || 1);
+      Route3D.dessiner({ s: s, lateral: 1.75, largeurM: 7,
+        courbure: courbure, pente: pente,
+        bau:     ph.jeu ? bau : null,
+        rails:   ph.jeu ? rails : null,
+        trafic:  ph.jeu ? trafic : null,
+        marquage: { voies: 2, bidirect: true }, arbres: true,
+        oeil: 1.35, camR: 0.10 * Math.sin(s * 0.02), camLacet: 0, camY: 0,
+        masque: ph.fige ? { fige: 1 } : null });
+    }catch(e){
+      dire('ERREUR pendant le rendu : ' + e.message, 'ko');
+      return;
+    }
+    /* L'affichage courant, pour qu'on voie que ca tourne pendant les dix secondes. */
+    cumul += ms; nAff++;
+    if (nAff >= 30){
+      fps.textContent = ph.nom + ' : ' + Math.round(30000 / cumul) + ' i/s';
+      cumul = 0; nAff = 0;
+    }
+
+    if (!t0){ t0 = t; n = 0; pire = 0; requestAnimationFrame(image); return; }
+    var ec = t - t0;
+    if (ec >= CHAUFFE){
+      n++;
+      if (ms > pire) pire = ms;
+      if (ec >= CHAUFFE + DUREE){
+        res.push({ nom: ph.nom, ips: Math.round(n * 1000 / (ec - CHAUFFE)), pire: Math.round(pire) });
+        ip++; t0 = 0; n = 0; pire = 0;
+        if (ip >= PHASES.length){ finir(); return; }
+        appliquerCadre(PHASES[ip].cadre);
+      }
+    }
+    requestAnimationFrame(image);
+  }
+
+  function finir(){
+    var ref = res[0].ips, txt = 'RESULTAT\n\n';
+    for (var i = 0; i < res.length; i++){
+      var r = res[i], d = r.ips - ref;
+      txt += (r.nom + '              ').slice(0, 13) + ' ' + r.ips + ' i/s'
+           + '   pire ' + r.pire + ' ms'
+           + (i === 0 ? '' : (d >= 0 ? '   (+' + d + ')' : '   (' + d + ')')) + '\n';
+    }
+    txt += '\nCADRE ' + c.width + 'x' + c.height + '   DPR '
+         + (window.devicePixelRatio || 1).toFixed(2) + '\n';
+    var cJeu = res[1] ? res[1].ips : 0, cFige = res[2] ? res[2].ips : 0,
+        cCadre = res[3] ? res[3].ips : 0;
+    txt += '\nLECTURE :\n';
+    if (ref - cJeu > 8)        txt += '  le CONTENU coute cher (bas-cote, glissieres, trafic)\n';
+    if (cFige - cJeu > 8)      txt += '  les ECRITURES par image coutent cher\n';
+    if (cJeu - cCadre > 8)     txt += '  la MISE EN PAGE du jeu coute cher (calque non materiel)\n';
+    if (ref - cJeu <= 8 && cFige - cJeu <= 8 && cJeu - cCadre <= 8)
+      txt += '  aucune des trois : le defaut du jeu est ailleurs.\n';
+    tab.textContent = txt;
+    fps.textContent = 'TERMINE';
+    appliquerCadre(false);
+  }
+
+  requestAnimationFrame(image);
+  dire('Banc lance : quatre phases, environ douze secondes. Ne touchez a rien.');
+}
+</script>
+</body>
+</html>

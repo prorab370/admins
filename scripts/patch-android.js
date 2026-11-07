@@ -1,16 +1,9 @@
-// Правки сгенерированного Capacitor-проекта: альбомная ориентация, полный экран, экран не гаснет.
+// Правки сгенерированного Capacitor-проекта (по образцу admins-main): полноэкранный режим и экран не гаснет.
+// Ориентацию НЕ фиксируем: игра работает и в портретной, и в альбомной.
 const fs = require('fs'), path = require('path');
 const base = path.join(__dirname, '..', 'android', 'app', 'src', 'main');
-const man = path.join(base, 'AndroidManifest.xml'); let x = fs.readFileSync(man, 'utf8');
-if (!x.includes('screenOrientation')) x = x.replace('<activity', '<activity android:screenOrientation="sensorLandscape"');
-if (!x.includes('android.permission.VIBRATE')) x = x.replace('<application', '<uses-permission android:name="android.permission.VIBRATE" />\n    <application');   // вибрация (navigator.vibrate)
-fs.writeFileSync(man, x);
-// иконка приложения: PNG разных размеров вместо адаптивной иконки по умолчанию
-const res = path.join(base, 'res'), src = path.join(__dirname, '..', 'android-res');
-fs.rmSync(path.join(res, 'mipmap-anydpi-v26'), { recursive: true, force: true });
-for (const d of fs.readdirSync(src)) { fs.mkdirSync(path.join(res, d), { recursive: true }); for (const f of fs.readdirSync(path.join(src, d))) fs.copyFileSync(path.join(src, d, f), path.join(res, d, f)); }
-const dir = path.join(base, 'java', 'com', 'enginesim', 'app'); fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'MainActivity.java'), `package com.enginesim.app;
+const dir = path.join(base, 'java', 'com', 'example', 'simmoteur'); fs.mkdirSync(dir, { recursive: true });
+fs.writeFileSync(path.join(dir, 'MainActivity.java'), `package com.example.simmoteur;
 
 import android.os.Bundle;
 import android.view.View;

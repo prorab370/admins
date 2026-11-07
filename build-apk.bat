@@ -6,6 +6,8 @@ if "%JAVA_HOME%"=="" goto nojava
 if "%ANDROID_HOME%"=="" if "%ANDROID_SDK_ROOT%"=="" goto nosdk
 call npm install
 if errorlevel 1 goto err
+call node scripts\check.js
+if errorlevel 1 goto err
 call node scripts\prepare-web.js
 if errorlevel 1 goto err
 if not exist android call npx cap add android
@@ -18,9 +20,9 @@ pushd android
 call gradlew.bat assembleDebug
 if errorlevel 1 goto err2
 popd
-copy /y android\app\build\outputs\apk\debug\app-debug.apk EngineSim.apk
+copy /y android\app\build\outputs\apk\debug\app-debug.apk SimulationMoteur.apk
 echo.
-echo DONE: EngineSim.apk - copy it to the phone and install
+echo DONE: SimulationMoteur.apk - copy it to the phone and install
 pause
 exit /b 0
 :nonode

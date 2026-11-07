@@ -1,0 +1,21 @@
+{
+  "name": "Simulation Moteur",
+  "short_name": "Sim Moteur",
+  "description": "Simulateur de moteur et de conduite.",
+  "id": "/simulation-moteur/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#04140a",
+  "theme_color": "#04140a",
+  "lang": "fr",
+  "categories": ["games", "simulation"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "icones/jeu-sim-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icones/jeu-sim-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icones/jeu-sim-512-masque.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

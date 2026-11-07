@@ -1,7 +1,7 @@
 {
-  "appId": "com.enginesim.app",
-  "appName": "Engine Sim",
+  "appId": "com.example.simmoteur",
+  "appName": "Simulation Moteur",
   "webDir": "www",
   "server": { "androidScheme": "https" },
-  "backgroundColor": "#14171c"
+  "backgroundColor": "#04140a"
 }

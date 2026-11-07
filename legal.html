@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mentions légales et confidentialité — Simulation Moteur</title>
+
+<!-- ===== LES POLICES SONT CELLES DU JEU, EN LOCAL =====
+     Cette page est lue DANS l'application, qui peut tourner sans reseau. Un appel a
+     fonts.googleapis.com laisserait le joueur hors ligne devant une page en police systeme -
+     et surtout, il ferait sortir une requete vers Google depuis une page qui explique
+     justement ce qui sort et ce qui ne sort pas. Les fichiers sont deja dans assets/fonts
+     pour le jeu ; on les reutilise. -->
+<style>
+  /* V1.2.5 (LANGUES) : les faces de police du jeu (index.html), memes familles et memes plages : latin, latin etendu (polonais, turc),
+     cyrillique (russe), complement turc de la police mono, japonais. Un fichier n'est lu que si la page affiche un signe de sa plage.
+     Les polices du grec, du coreen, du chinois, du thai et de l'arabe arrivent avec leur traduction (SM_LEGAL.<code>.css). */
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/barlow-condensed-500-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/barlow-condensed-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/barlow-condensed-600-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/barlow-condensed-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/barlow-condensed-700-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/barlow-condensed-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-400-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-500-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-600-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-600-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-700-latin-ext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/barlow-semi-condensed-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/share-tech-mono-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/sofia-sans-condensed-600-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/sofia-sans-condensed-700-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/sofia-sans-condensed-800-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/sofia-sans-semi-condensed-400-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/sofia-sans-semi-condensed-500-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/sofia-sans-semi-condensed-700-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/sofia-sans-semi-condensed-800-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/noto-sans-mono-condensed-400-cyrillic.woff2) format('woff2');unicode-range:U+0400-045F, U+0490-0491, U+2116;ascent-override:88.5%;descent-override:24.2%;line-gap-override:0%}
+  @font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/noto-sans-mono-condensed-400-turc.woff2) format('woff2');unicode-range:U+011E-011F, U+0130, U+015E-015F;ascent-override:88.5%;descent-override:24.2%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/noto-sans-jp-500-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/noto-sans-jp-500-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/noto-sans-jp-700-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/noto-sans-jp-400-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(assets/fonts/noto-sans-jp-500-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/noto-sans-jp-500-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Barlow Semi Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/noto-sans-jp-700-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:100%;descent-override:20%;line-gap-override:0%}
+  @font-face{font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/noto-sans-jp-400-ja.woff2) format('woff2');unicode-range:U+3000-30FF, U+31F0-31FF, U+4E00-9FFF, U+FF00-FFEF, U+20B9F;ascent-override:88.5%;descent-override:24.2%;line-gap-override:0%}
+
+  :root{
+    --bg:#050705; --panneau:#0a120c; --ligne:#1b6b33; --ligne-pale:#0f3a1c;
+    --vert:#39ff6a; --vert-sourd:#1e8f43; --texte:#d8e6dc; --gris:#7f9587;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--texte);
+    font-family:'Barlow Semi Condensed', system-ui, sans-serif;
+    font-size:16px; line-height:1.55;
+    padding:calc(14px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust:100%;
+  }
+  main{max-width:680px; margin:0 auto;}
+
+  .retour{
+    display:inline-block; margin-bottom:22px; padding:8px 14px;
+    border:1px solid var(--ligne); border-radius:4px;
+    color:var(--vert); text-decoration:none;
+    font-family:'Share Tech Mono', monospace; font-size:14px; letter-spacing:.06em;
+  }
+  .retour:active{background:rgba(57,255,106,.14);}
+
+  h1{
+    font-family:'Barlow Condensed', sans-serif; font-weight:600;
+    font-size:1.6rem; line-height:1.1; text-transform:uppercase; letter-spacing:.02em;
+    color:#fff; margin-bottom:6px;
+  }
+  .sous{color:var(--gris); font-size:14px; margin-bottom:26px;}
+  .sous b{color:var(--vert-sourd); font-weight:600;}
+
+  h2{
+    font-family:'Share Tech Mono', monospace; font-weight:400;
+    font-size:14px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--vert); margin:30px 0 10px;
+    padding-bottom:6px; border-bottom:1px solid var(--ligne-pale);
+  }
+  p{margin-bottom:12px;}
+  ul{margin:0 0 12px 18px;} li{margin-bottom:7px;}
+  b,strong{color:#fff; font-weight:600;}
+  a{color:var(--vert); overflow-wrap:anywhere;}
+  code{font-family:'Share Tech Mono', monospace; color:var(--vert); font-size:.95em;}
+
+  .encadre{
+    background:var(--panneau); border-left:3px solid var(--ligne);
+    padding:13px 15px; margin:16px 0;
+  }
+  .encadre p:last-child{margin-bottom:0;}
+
+  dl{margin-bottom:12px;}
+  dt{font-family:'Share Tech Mono', monospace; font-size:12.5px; letter-spacing:.08em;
+     text-transform:uppercase; color:var(--gris); margin-top:11px;}
+  dd{margin-left:0; color:#fff;}
+
+  footer{
+    margin-top:38px; padding-top:16px; border-top:1px solid var(--ligne-pale);
+    color:var(--gris); font-size:13px;
+  }
+
+  /* ===== UNE PAGE, DEUX MAGASINS (version iOS) =====
+     Par defaut (Android, site) : les blocs .seul-ios sont caches et la page est EXACTEMENT celle d'avant.
+     Dans l'application iPhone, le petit script plus bas pose la classe "ios" sur <html> AVANT que le corps ne soit lu :
+     les blocs Android disparaissent et les blocs iPhone apparaissent, sans eclair. Sur le site, l'adresse
+     legal.html?ios montre la version iPhone (c'est elle qu'on donne a App Store Connect) : les TEXTES seulement.
+     Ce qui ne sert que DANS l'application (defilement, bouton qui recharge le jeu, zones de securite) suit la classe
+     "ios-app", posee seulement dans l'application. */
+  .seul-ios, .seul-ios-app{display:none;}
+  html.ios .seul-ios{display:block;}
+  html.ios span.seul-ios{display:inline;}
+  html.ios .seul-android{display:none;}
+  html.ios-app a.seul-ios-app{display:inline-block;}
+  html.ios-app a.retour.seul-web{display:none;}
+
+  /* ===== LA PAGE DEFILE DANS L'APPLICATION IPHONE (version iOS) =====
+     La coque iPhone coupe le defilement de la PAGE entiere (scrollEnabled:false, pour que le jeu ne bouge pas sous les
+     doigts) : ce texte de plusieurs ecrans ne defilait donc plus. Comme le jeu, on fait defiler un CADRE et non la page :
+     html ne deborde pas (sinon l'overflow de body serait reporte sur la page, justement coupee), body defile.
+     La marge du bas passe dans main : sur iOS 15, celle d'un cadre qui defile n'est pas toujours comptee. */
+  html.ios-app{height:100%; overflow:hidden;}
+  html.ios-app body{height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:0;
+    /* Couche en « Affichage agrandi » (693 points), la colonne de texte touche les bords : l'encoche y mordait. */
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));}
+  html.ios-app main{padding-bottom:calc(40px + env(safe-area-inset-bottom, 0px));}
+  .retour.bas{margin:34px 0 0;}
+
+  /* ===== V1.2.5 (LANGUES) : LA PAGE DANS LA LANGUE DU JEU =====
+     Le francais reste CETTE page, inchangee (et fait foi). Dans une autre langue, le petit script plus bas charge sa traduction
+     (assets/legal/<code>.js) et le contenu de <main> est remplace avant le premier affichage (main cache pendant ce temps). Une
+     note en tete de chaque traduction renvoie au francais. L'arabe se lit de droite a gauche ; l'espacement des lettres casserait
+     l'arabe et ecarterait le thai. */
+  html.trad main{visibility:hidden;}
+  .note-trad{color:var(--gris); font-size:13.5px; margin:-14px 0 24px; padding:8px 12px; border:1px dashed var(--ligne-pale);}
+  html[dir="rtl"] .encadre{border-left:0; border-right:3px solid var(--ligne);}
+  html[dir="rtl"] ul{margin:0 18px 12px 0;}
+  html[lang="ar"] *, html[lang="th"] *{letter-spacing:0 !important;}
+  /* L9 : coreen coupe par mots (sinon au milieu d'un mot), japonais et chinois a la japonaise (pas de petit kana ni de ー en debut de
+     ligne), arabe sans italique (l'italique synthetique n'existe pas en arabe). */
+  html[lang="ko"] main{word-break:keep-all; overflow-wrap:anywhere;}
+  html[lang="ja"] main, html[lang="zh-Hans"] main{line-break:strict;}
+  html[lang="ar"] i, html[lang="ko"] i, html[lang="zh-Hans"] i, html[lang="ja"] i, html[lang="th"] i{font-style:normal;}     /* L9 : pas d'italique synthetique dans ces ecritures */
+</style>
+<script>
+  /* Meme garde que dans index.html (Capacitor pose son pont au debut de chaque page de l'application). */
+  (function(){
+    try{
+      var IOS_NATIF = !!(window.Capacitor && typeof Capacitor.getPlatform === 'function' && Capacitor.getPlatform() === 'ios');
+      if (IOS_NATIF) document.documentElement.className += ' ios ios-app';
+      else if (/(^|[?&])ios(&|=|$)/.test(location.search.slice(1))) document.documentElement.className += ' ios';
+    }catch(e){}
+  })();
+  /* V1.2.5 (LANGUES) : la langue de la page = ?lang=xx dans l'adresse, sinon celle du jeu (grimvex_langue), sinon celle du telephone,
+     sinon le francais - la regle de chargerLangue dans index.html. Le francais ne charge rien : la page reste celle d'avant. */
+  (function(){
+    var LG = ['en','de','es','it','br','pt','pl','ru','ja','id','tr','el','ko','zh','th','ar'], l = null;
+    try{
+      var m = /(?:^|[?&])lang=([a-z]{2})(?:&|$)/.exec(location.search.slice(1));
+      if (m) l = m[1];
+      if (!l) l = localStorage.getItem('grimvex_langue') || localStorage.getItem('simmoteur_langue');
+      if (!l){
+        var nl = navigator.language || '', nav = nl.slice(0, 2).toLowerCase();
+        if (nav === 'pt'){ var pays = (nl.split(/[-_]/)[1] || '').toUpperCase(); nav = /^(PT|AO|MZ|CV|GW|ST|TL)$/.test(pays) ? 'pt' : 'br'; }
+        if (nav === 'be' || nav === 'kk' || nav === 'ky') nav = 'ru';
+        if (nav === 'in') nav = 'id';
+        if (nav === 'zh' && /^zh[-_](tw|hk|mo|hant)/i.test(nl)) nav = 'en';
+        l = nav;
+      }
+    }catch(e){}
+    if (!l || l === 'fr' || LG.indexOf(l) < 0) return;
+    window.SM_LEGAL_LANGUE = l;
+    document.documentElement.className += ' trad';
+    document.write('<script src="assets/legal/' + l + '.js?v=1.2.5"><\/script>');
+  })();
+</script>
+</head>
+<body>
+<main>
+
+<a class="retour seul-web" href="javascript:history.back()">&larr; RETOUR AU JEU</a>
+<!-- Version iOS : il n'y a ni touche Retour ni geste de retour dans l'application, ce lien est la SEULE sortie. Il
+     recharge le jeu au lieu de revenir dans l'historique : en quittant index.html, la coque a remis a zero son pont
+     natif (les ecouteurs de la publicite, notamment), et une page ressortie telle quelle de l'historique ne le saurait
+     pas. Le joueur etait au menu principal : il y revient, rien n'est perdu (tout est deja enregistre). -->
+<a class="retour seul-ios-app" href="index.html" onclick="try{ location.replace('index.html'); return false; }catch(e){ return true; }">&larr; RETOUR AU JEU</a>
+
+<h1>Mentions légales et confidentialité</h1>
+<p class="sous">Application <b>Simulation Moteur</b><span class="seul-android"> pour Android</span> · Dernière mise à jour : septembre 2026</p>
+
+<div class="encadre">
+  <p><strong>L'essentiel en trois phrases.</strong> Vos véhicules, vos moteurs et votre progression
+  restent dans votre téléphone : ils ne sont ni transmis, ni consultés, ni conservés par l'éditeur.
+  L'application ne demande aucun compte, aucune inscription, aucune adresse électronique.
+  Les seules données qui sortent de l'appareil sont celles de la régie publicitaire, décrites plus bas,
+  et vous en gardez le contrôle.</p>
+</div>
+
+<h2>Éditeur</h2>
+<dl>
+  <dt>Éditeur</dt>
+  <dd>Louis-Frédéric Hazebrouck, entrepreneur individuel exerçant sous le nom commercial <b>grimvexgames</b></dd>
+  <dt>Siège</dt>
+  <dd>59 rue de Ponthieu, Bureau 326, 75008 Paris, France</dd>
+  <dt>Immatriculation</dt>
+  <dd>SIREN 995 199 791 — SIRET 995 199 791 00048 — code APE 6201Z<br>
+      Registre national des entreprises (RNE) tenu par l'INPI</dd>
+  <dt>TVA</dt>
+  <dd>TVA non applicable, article 293 B du code général des impôts</dd>
+  <dt>Responsable de la publication</dt>
+  <dd>Louis-Frédéric Hazebrouck</dd>
+  <dt>Contact</dt>
+  <dd><a href="mailto:contact@grimvexgames.fr">contact@grimvexgames.fr</a></dd>
+</dl>
+
+<h2>Ce que l'application enregistre</h2>
+<p>Simulation Moteur enregistre dans le <b>stockage local de l'application</b>, sur votre appareil
+uniquement : vos véhicules et vos moteurs, votre progression et vos crédits, vos favoris, vos records,
+ainsi que vos préférences d'affichage, de pilotage et de langue.<span class="seul-ios"> Si vous avez acheté la
+suppression des publicités, elle y retient aussi cet achat ; lui seul se récupère après une réinstallation
+(voir plus bas).</span></p>
+<p>Ces informations <b>ne quittent jamais votre téléphone</b>. L'éditeur n'y a pas accès, ne les
+reçoit pas et n'en conserve aucune copie. Il n'existe aucun serveur de jeu, aucun compte joueur et
+aucune synchronisation.</p>
+<div class="encadre">
+  <p><b>Conséquence directe, et il faut la connaître :</b> désinstaller l'application efface ces
+  données définitivement, et personne ne peut les restaurer. C'est pourquoi le jeu propose un export
+  de sauvegarde dans <i>Options → Sauvegarde</i>. Le fichier produit vous appartient : il est écrit
+  sur votre appareil, et vous seul décidez où l'envoyer.</p>
+</div>
+
+<h2>Publicité</h2>
+<p>La version gratuite affiche des annonces fournies par <b>Google AdMob</b>. Elles apparaissent
+entre deux sessions de jeu — jamais pendant que vous conduisez.</p>
+<p class="seul-android">Pour les diffuser, Google peut lire ou déposer des informations sur votre appareil, dont
+l'<b>identifiant publicitaire Android</b>, et traiter des données techniques telles que le modèle de
+l'appareil, sa version d'Android, sa langue et une adresse IP approximative. Ces traitements relèvent
+de la responsabilité de Google et de sa propre politique, consultable sur
+<a href="https://policies.google.com/technologies/ads">policies.google.com/technologies/ads</a>.</p>
+<p class="seul-ios">Pour les diffuser, Google peut lire ou déposer des informations sur votre appareil et
+traiter des données techniques telles que le modèle de l'appareil, la version du système, sa langue et
+une adresse IP approximative. L'<b>identifiant publicitaire de l'appareil (IDFA)</b> n'est utilisé que si
+vous l'autorisez quand le système vous le demande (demande de suivi, au premier lancement) ; si vous
+refusez, ou si les demandes de suivi sont désactivées sur l'appareil, il n'est pas transmis. Ces traitements
+relèvent de la responsabilité de Google et de sa propre politique, consultable sur
+<a href="https://policies.google.com/technologies/ads">policies.google.com/technologies/ads</a>.</p>
+<p class="seul-ios">En détail, le kit publicitaire de Google peut traiter : l'identifiant publicitaire
+(seulement si vous l'autorisez), des données publicitaires et vos interactions avec les annonces
+(affichages, touchers), une localisation approximative déduite de l'adresse IP, et des données de
+diagnostic (plantages, performances). Elles servent à afficher les annonces, à mesurer leur audience et leur
+efficacité, et à assurer le bon fonctionnement du service. Elles ne sont liées ni à votre nom ni à un
+compte. Google les traite selon ses propres engagements de protection des données, qui respectent le RGPD et
+offrent une protection au moins égale à celle décrite ici, et les conserve pendant les durées indiquées dans
+sa politique. L'éditeur, lui, n'en reçoit ni n'en conserve aucune.</p>
+<p class="seul-android">Au premier lancement, un écran de consentement vous demande vos choix. Vous pouvez les
+<b>modifier ou les retirer à tout moment</b> dans <i>Options</i>. En l'absence de consentement, seules
+des annonces <b>non personnalisées</b> sont diffusées : le jeu reste entièrement jouable.</p>
+<p class="seul-ios">Là où la réglementation l'exige (notamment dans l'Espace économique européen, au
+Royaume-Uni et en Suisse), un écran de consentement vous demande vos choix au premier lancement ; vous
+pouvez alors les <b>modifier ou les retirer à tout moment</b> dans <i>Options → Données → Publicités</i>.
+En l'absence de consentement, seules des annonces <b>non personnalisées</b> sont diffusées : le jeu reste
+entièrement jouable.</p>
+<p class="seul-android">Vous pouvez également réinitialiser ou supprimer votre identifiant publicitaire depuis les
+réglages d'Android, dans la section consacrée à la confidentialité.</p>
+<p class="seul-ios">Vous pouvez à tout moment accorder ou retirer l'autorisation de suivi dans les
+<b>Réglages</b> de l'appareil, rubrique <i>Confidentialité et sécurité → Suivi</i> (<i>Confidentialité →
+Suivi</i> sur les versions plus anciennes du système), ou dans <i>Réglages → Sim Moteur → Autoriser le
+suivi</i>.</p>
+
+<h2>Achat de suppression des publicités</h2>
+<p class="seul-android">Un achat unique retire définitivement les publicités. Le paiement est traité par
+<b>Google Play</b>, qui agit comme vendeur et comme responsable de ses propres traitements :
+l'éditeur ne voit ni vos coordonnées bancaires, ni aucune donnée de paiement, et n'en conserve
+évidemment aucune.</p>
+<p class="seul-android">L'achat est rattaché à votre compte Google. Il se restaure donc sans frais sur vos autres
+appareils et après une réinstallation. Les demandes de remboursement relèvent des conditions de
+Google Play.</p>
+<p class="seul-ios">Un achat unique retire définitivement les publicités. Le paiement est traité par
+<b>Apple (App Store)</b>, qui agit comme vendeur et comme responsable de ses propres traitements :
+l'éditeur ne voit ni vos coordonnées bancaires, ni aucune donnée de paiement, et n'en conserve
+évidemment aucune.</p>
+<p class="seul-ios">L'achat est rattaché à votre compte App Store. Sur un autre appareil ou après une
+réinstallation, il se récupère sans frais avec <i>Options → Données → Restaurer mon achat</i>. Les
+demandes de remboursement relèvent des conditions d'Apple.</p>
+<p>Cet achat ne débloque aucun contenu, aucun véhicule et aucun avantage de jeu :
+<b>il ne retire que les publicités.</b> Rien dans le jeu n'est verrouillé derrière un paiement.</p>
+
+<h2>Vos droits</h2>
+<p>L'éditeur ne détenant aucune donnée vous concernant, il n'a rien à vous communiquer, rectifier ni
+effacer. Les données que vous souhaiteriez faire supprimer sont soit sur votre appareil — l'export et
+la désinstallation vous en donnent la maîtrise complète — soit chez Google<span class="seul-ios"> (publicité)
+ou chez Apple (paiement)</span>, à qui il faut alors s'adresser directement.</p>
+<p>Pour toute question, écrivez à
+<a href="mailto:contact@grimvexgames.fr">contact@grimvexgames.fr</a>. Vous pouvez également saisir la
+<b>CNIL</b> (<a href="https://www.cnil.fr">cnil.fr</a>).</p>
+
+<h2>Public visé</h2>
+<p>Simulation Moteur ne s'adresse pas aux enfants et n'est pas conçue pour eux. Elle ne collecte
+sciemment aucune donnée relative à un enfant.</p>
+
+<h2>Propriété intellectuelle</h2>
+<p>Le jeu, son code, ses graphismes et ses sons sont la propriété de leur auteur. Toute reproduction
+est interdite sans autorisation.</p>
+<p>Les véhicules proposés sont des <b>configurations techniques fictives</b> désignées par des codes :
+aucune marque, aucun modèle ni aucun constructeur réel n'est représenté, cité ou affilié à cette
+application.</p>
+
+<h2>Nature du service</h2>
+<p>Simulation Moteur est un <b>jeu</b>. Les valeurs affichées proviennent d'un modèle simplifié et
+n'ont aucune valeur technique, pédagogique ou métrologique. Le service est fourni en l'état, sans
+garantie de disponibilité ni d'exactitude.</p>
+
+<h2>Conception</h2>
+<p>Développée avec l'aide de Claude AI (Anthropic). Cette application n'est ni affiliée à Anthropic,
+ni approuvée par elle.</p>
+
+<!-- Version iOS : la meme sortie en bas de page, a quatre ecrans du haut. -->
+<a class="retour bas seul-ios-app" href="index.html" onclick="try{ location.replace('index.html'); return false; }catch(e){ return true; }">&larr; RETOUR AU JEU</a>
+
+<footer>
+  grimvexgames — SIREN 995 199 791 — <a href="mailto:contact@grimvexgames.fr">contact@grimvexgames.fr</a>
+</footer>
+
+</main>
+<script>
+  /* V1.2.5 (LANGUES) : la traduction remplace le contenu de <main> avant le premier affichage ; sans traduction lue (fichier absent),
+     la page francaise reste et redevient visible. Le lien de la note vers le francais garde la version iPhone (?ios) du site. */
+  (function(){
+    var h = document.documentElement, l = window.SM_LEGAL_LANGUE, T = l && window.SM_LEGAL && window.SM_LEGAL[l];
+    try{
+      if (T){
+        if (T.css){ var st = document.createElement('style'); st.textContent = T.css; document.head.appendChild(st); }     // L9 : les polices de la langue
+        document.querySelector('main').innerHTML = T.main;
+        h.setAttribute('lang', T.html);
+        if (T.dir === 'rtl') h.setAttribute('dir', 'rtl');
+        var t1 = document.querySelector('h1');
+        if (t1) document.title = t1.textContent + ' — Simulation Moteur';
+        if (/(^|[?&])ios(&|=|$)/.test(location.search.slice(1))){
+          var a = document.querySelector('.note-trad a');
+          if (a) a.setAttribute('href', 'legal.html?lang=fr&ios');
+        }
+      }
+    }catch(e){}
+    h.className = h.className.replace(/(^|\s)trad(?=\s|$)/, ' ');
+  })();
+</script>
+</body>
+</html>
